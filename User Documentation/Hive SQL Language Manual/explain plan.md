@@ -2,8 +2,6 @@
 
 [TOC]
 
-[explain plan](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Explain)
-
 ## 1、EXPLAIN Syntax
 
 EXPLAIN 命令展示查询的执行计划。
