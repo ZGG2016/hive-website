@@ -4,7 +4,7 @@
 
 > Figure 1
 
-![system_architecture](./system_architecture.png)
+![system_architecture](./image/system_architecture.png)
 
 ## 1、Hive Architecture
 
