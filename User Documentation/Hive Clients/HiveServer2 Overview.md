@@ -2,7 +2,7 @@
 
 ## 1、Introduction
 
-<font color="grey">HiveServer2 (HS2) is a service that enables clients to execute queries against Hive. HiveServer2 is the successor to [HiveServer1](https://cwiki.apache.org/confluence/display/Hive/HiveServer) which has been deprecated. HS2 supports multi-client concurrency and authentication. It is designed to provide better support for open API clients like JDBC and ODBC.</font>
+> HiveServer2 (HS2) is a service that enables clients to execute queries against Hive. HiveServer2 is the successor to [HiveServer1](https://cwiki.apache.org/confluence/display/Hive/HiveServer) which has been deprecated. HS2 supports multi-client concurrency and authentication. It is designed to provide better support for open API clients like JDBC and ODBC.
 
 HiveServer2 (HS2)是一个服务，允许客户端对 Hive 执行查询。 HiveServer2 是已被弃用的 HiveServer1 的继承者。
 
@@ -10,7 +10,7 @@ HS2 **支持多客户端并发和身份验证**。它旨在为 JDBC 和 ODBC 等
 
 HS2 是**作为复合服务运行的单个进程**，包括基于 Thrift 的 Hive 服务(TCP或HTTP)和用于 web UI 的 Jetty web 服务。
 
-<font color="grey">HS2 is a single process running as a composite service, which includes the Thrift-based Hive service (TCP or HTTP) and a [Jetty](http://www.eclipse.org/jetty/) web server for web UI. </font>
+> HS2 is a single process running as a composite service, which includes the Thrift-based Hive service (TCP or HTTP) and a [Jetty](http://www.eclipse.org/jetty/) web server for web UI. 
 
 ## 2、HS2 Architecture
 
@@ -20,9 +20,9 @@ HS2 是**作为复合服务运行的单个进程**，包括基于 Thrift 的 Hiv
 
 下面将描述在 HS2 实现中这些层的用法。
 
-<font color="grey">The Thrift-based Hive service is the core of HS2 and responsible for servicing the Hive queries (e.g., from Beeline). [Thrift](https://thrift.apache.org/) is an RPC framework for building cross-platform services. Its stack consists of 4 layers: Server, Transport, Protocol, and Processor. You can find more details about the layers at [https://thrift.apache.org/docs/concepts](https://thrift.apache.org/docs/concepts).
+> The Thrift-based Hive service is the core of HS2 and responsible for servicing the Hive queries (e.g., from Beeline). [Thrift](https://thrift.apache.org/) is an RPC framework for building cross-platform services. Its stack consists of 4 layers: Server, Transport, Protocol, and Processor. You can find more details about the layers at [https://thrift.apache.org/docs/concepts](https://thrift.apache.org/docs/concepts).
 
-The usage of those layers in the HS2 implementation is described below.</font>
+The usage of those layers in the HS2 implementation is described below.
 
 ### 2.1、Server
 
@@ -34,9 +34,9 @@ TThreadPoolServer 为每个 TCP 连接分配一个工作线程。每个线程总
 
 将来，HS2 可能会切换到另一种服务类型，例如 TThreadedSelectorServer。
 
-<font color="grey">HS2 uses a TThreadPoolServer (from Thrift) for TCP mode, or a Jetty server for the HTTP mode. 
+> HS2 uses a TThreadPoolServer (from Thrift) for TCP mode, or a Jetty server for the HTTP mode. 
 
-The TThreadPoolServer allocates one worker thread per TCP connection. Each thread is always associated with a connection even if the connection is idle. So there is a potential performance issue resulting from a large number of threads due to a large number of concurrent connections. In the future HS2 might switch to another server type for TCP mode, for example TThreadedSelectorServer. Here is an [article](https://github.com/m1ch1/mapkeeper/wiki/Thrift-Java-Servers-Compared) about a performance comparison between different Thrift Java servers.</font>
+The TThreadPoolServer allocates one worker thread per TCP connection. Each thread is always associated with a connection even if the connection is idle. So there is a potential performance issue resulting from a large number of threads due to a large number of concurrent connections. In the future HS2 might switch to another server type for TCP mode, for example TThreadedSelectorServer. Here is an [article](https://github.com/m1ch1/mapkeeper/wiki/Thrift-Java-Servers-Compared) about a performance comparison between different Thrift Java servers.
 
 ### 2.2、Transport
 
@@ -44,7 +44,7 @@ The TThreadPoolServer allocates one worker thread per TCP connection. Each threa
 
 这就是支持它以及TCP模式的原因。可以通过配置属性`hive.server .transport.mode`指定 Thrift 服务的传输模式。
 
-<font color="grey">HTTP mode is required when a proxy is needed between the client and server (for example, for load balancing or security reasons). That is why it is supported, as well as TCP mode. You can specify the transport mode of the Thrift service through the Hive configuration property [hive.server2.transport.mode](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.server2.transport.mode).</font>
+> HTTP mode is required when a proxy is needed between the client and server (for example, for load balancing or security reasons). That is why it is supported, as well as TCP mode. You can specify the transport mode of the Thrift service through the Hive configuration property [hive.server2.transport.mode](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.server2.transport.mode).
 
 ### 2.3、Protocol
 
@@ -54,13 +54,13 @@ HS2 目前使用 TBinaryProtocol 作为其序列化的 Thrift 协议。
 
 基于更多的性能评估，在未来可能考虑其他协议，如 TCompactProtocol。
 
-<font color="grey">The Protocol implementation is responsible for serialization and deserialization. HS2 is currently using TBinaryProtocol as its Thrift protocol for serialization. In the future other protocols may be considered, such as TCompactProtocol, based on more performance evaluation.</font>
+> The Protocol implementation is responsible for serialization and deserialization. HS2 is currently using TBinaryProtocol as its Thrift protocol for serialization. In the future other protocols may be considered, such as TCompactProtocol, based on more performance evaluation.
 
 ### 2.4、Processor
 
 **Process 是应用程序处理请求的逻辑**。例如，`ThriftCLIService.ExecuteStatement()`方法实现了编译和执行一个 Hive 查询的逻辑。
 
-<font color="grey">Process implementation is the application logic to handle requests. For example, the ThriftCLIService.ExecuteStatement() method implements the logic to compile and execute a Hive query.</font>
+> Process implementation is the application logic to handle requests. For example, the ThriftCLIService.ExecuteStatement() method implements the logic to compile and execute a Hive query.
 
 ## 3、Dependencies of HS2
 
@@ -72,21 +72,21 @@ metastore 可以嵌入其中(在与HS2相同的进程中)，也可以配置为�
 
 **HS2 为各种执行引擎(MapReduce/Tez/Spark)准备物理执行计划，并将作业提交到 Hadoop 集群执行。**
 
-<font color="grey">[Metastore](https://cwiki.apache.org/confluence/display/Hive/AdminManual+Metastore+Administration)
-The metastore can be configured as embedded (in the same process as HS2) or as a remote server (which is a Thrift-based service as well). HS2 talks to the metastore for the metadata required for query compilation. </font> 
+> [Metastore](https://cwiki.apache.org/confluence/display/Hive/AdminManual+Metastore+Administration)
+The metastore can be configured as embedded (in the same process as HS2) or as a remote server (which is a Thrift-based service as well). HS2 talks to the metastore for the metadata required for query compilation.  
 
-<font color="grey">Hadoop cluster
-HS2 prepares physical execution plans for various execution engines (MapReduce/Tez/Spark) and submits jobs to the Hadoop cluster for execution.</font>
+> Hadoop cluster
+HS2 prepares physical execution plans for various execution engines (MapReduce/Tez/Spark) and submits jobs to the Hadoop cluster for execution.
 
-<font color="grey">You can find a diagram of the interactions between HS2 and its dependencies [here](https://cwiki.apache.org/confluence/display/Hive/Design#Design-HiveArchitecture).</font>
+> You can find a diagram of the interactions between HS2 and its dependencies [here](https://cwiki.apache.org/confluence/display/Hive/Design#Design-HiveArchitecture).
 
 可以在这里找到 HS2 及其依赖关系之间的交互图。
 
 ## 4、JDBC Client
 
-<font color="grey">The JDBC driver is recommended for the client side to interact with HS2. Note that there are some use cases (e.g., Hadoop Hue) where the Thrift client is used directly and JDBC is bypassed.</font>
+> The JDBC driver is recommended for the client side to interact with HS2. Note that there are some use cases (e.g., Hadoop Hue) where the Thrift client is used directly and JDBC is bypassed.
 
-<font color="grey">Here is a sequence of API calls involved to make the first query:</font>
+> Here is a sequence of API calls involved to make the first query:
 
 建议在客户端使用 JDBC driver与 HS2 交互。请注意，在一些用例中(如Hadoop Hue)，可以直接使用 Thrift 客户端，而绕开 JDBC。
 
@@ -94,57 +94,57 @@ HS2 prepares physical execution plans for various execution engines (MapReduce/T
 
 - JDBC 客户端(如，Beeline)通过初始化传输连接(如，TCP连接)，然后通过 OpenSession API 的调用获得一个 SessionHandle 来创建 HiveConnection 。会话是从服务器端创建的。
 
-<font color="grey">The JDBC client (e.g., Beeline) creates a HiveConnection by initiating a transport connection (e.g., TCP connection) followed by an OpenSession API call to get a SessionHandle. The session is created from the server side.</font>
+> The JDBC client (e.g., Beeline) creates a HiveConnection by initiating a transport connection (e.g., TCP connection) followed by an OpenSession API call to get a SessionHandle. The session is created from the server side.
 
 - 执行 HiveStatement(遵循JDBC标准)，并从 Thrift 客户端调用 ExecuteStatement API。在 API 调用中，将 SessionHandle 信息与查询信息一起传递给服务器。
 
-<font color="grey">The HiveStatement is executed (following JDBC standards) and an ExecuteStatement API call is made from the Thrift client. In the API call, SessionHandle information is passed to the server along with the query information.</font>
+> The HiveStatement is executed (following JDBC standards) and an ExecuteStatement API call is made from the Thrift client. In the API call, SessionHandle information is passed to the server along with the query information.
 
 - HS2 服务器接收请求，并向 driver(它是一个CommandProcessor)请求解析查询和编译。driver 启动一个后台作业，该作业将与 Hadoop 对话，然后立即向客户端返回响应。这是 ExecuteStatement API 的异步设计。该响应包含从服务器端创建的 OperationHandle。
 
-<font color="grey">The HS2 server receives the request and asks the driver (which is a CommandProcessor) for query parsing and compilation. The driver kicks off a background job that will talk to Hadoop and then immediately returns a response to the client. This is an asynchronous design of the ExecuteStatement API. The response contains an OperationHandle created from the server side.</font>
+> The HS2 server receives the request and asks the driver (which is a CommandProcessor) for query parsing and compilation. The driver kicks off a background job that will talk to Hadoop and then immediately returns a response to the client. This is an asynchronous design of the ExecuteStatement API. The response contains an OperationHandle created from the server side.
 
 - 客户端使用 OperationHandle 与 HS2 通信，以轮询 查询执行的状态。
 
-<font color="grey">The client uses the OperationHandle to talk to HS2 to poll the status of the query execution.</font>
+> The client uses the OperationHandle to talk to HS2 to poll the status of the query execution.
 
 ## 5、Source Code Description
 
-<font color="grey">The following sections help you locate some basic components of HiveServer2 in the source code.</font>
+> The following sections help you locate some basic components of HiveServer2 in the source code.
 
 下面几节将帮助您在源代码中找到 HiveServer2 的一些基本组件。
 
 ### 5.1、Server Side
 
-- <font color="grey">Thrift IDL file for TCLIService: [https://github.com/apache/hive/blob/master/service-rpc/if/TCLIService.thrift](https://github.com/apache/hive/blob/master/service-rpc/if/TCLIService.thrift).</font>
+- > Thrift IDL file for TCLIService: [https://github.com/apache/hive/blob/master/service-rpc/if/TCLIService.thrift](https://github.com/apache/hive/blob/master/service-rpc/if/TCLIService.thrift).
 
-- <font color="grey">TCLIService.Iface implemented by: 
-org.apache.hive.service.cli.thrift.ThriftCLIService class.</font>
+- > TCLIService.Iface implemented by: 
+org.apache.hive.service.cli.thrift.ThriftCLIService class.
 
-- <font color="grey">ThriftCLIService subclassed by: 
-org.apache.hive.service.cli.thrift.ThriftBinaryCLIService and org.apache.hive.service.cli.thrift.ThriftHttpCLIService for TCP mode and HTTP mode respectively.</font>
+- > ThriftCLIService subclassed by: 
+org.apache.hive.service.cli.thrift.ThriftBinaryCLIService and org.apache.hive.service.cli.thrift.ThriftHttpCLIService for TCP mode and HTTP mode respectively.
 
-- <font color="grey">org.apache.hive.service.cli.thrift.EmbeddedThriftBinaryCLIService class: Embedded mode for HS2. Don't get confused with embedded metastore, which is a different service (although the embedded mode concept is similar).</font>
+- > org.apache.hive.service.cli.thrift.EmbeddedThriftBinaryCLIService class: Embedded mode for HS2. Don't get confused with embedded metastore, which is a different service (although the embedded mode concept is similar).
 
-- <font color="grey">org.apache.hive.service.cli.session.HiveSessionImpl class: Instances of this class are created on the server side and managed by an org.apache.accumulo.tserver.TabletServer.SessionManager instance.</font>
+- > org.apache.hive.service.cli.session.HiveSessionImpl class: Instances of this class are created on the server side and managed by an org.apache.accumulo.tserver.TabletServer.SessionManager instance.
 
-- <font color="grey">org.apache.hive.service.cli.operation.Operation class: Defines an operation (e.g., a query). Instances of this class are created on the server and managed by an org.apache.hive.service.cli.operation.OperationManager instance.</font>
+- > org.apache.hive.service.cli.operation.Operation class: Defines an operation (e.g., a query). Instances of this class are created on the server and managed by an org.apache.hive.service.cli.operation.OperationManager instance.
 
-- <font color="grey">org.apache.hive.service.auth.HiveAuthFactory class: A helper used by both HTTP and TCP mode for authentication. Refer to [Setting Up HiveServer2](https://cwiki.apache.org/confluence/display/Hive/Setting+Up+HiveServer2) for various authentication options, in particular [Authentication/Security Configuration](https://cwiki.apache.org/confluence/display/Hive/Setting+Up+HiveServer2#SettingUpHiveServer2-Authentication/SecurityConfiguration) and [Cookie Based Authentication](https://cwiki.apache.org/confluence/display/Hive/Setting+Up+HiveServer2#SettingUpHiveServer2-CookieBasedAuthentication).</font>
+- > org.apache.hive.service.auth.HiveAuthFactory class: A helper used by both HTTP and TCP mode for authentication. Refer to [Setting Up HiveServer2](https://cwiki.apache.org/confluence/display/Hive/Setting+Up+HiveServer2) for various authentication options, in particular [Authentication/Security Configuration](https://cwiki.apache.org/confluence/display/Hive/Setting+Up+HiveServer2#SettingUpHiveServer2-Authentication/SecurityConfiguration) and [Cookie Based Authentication](https://cwiki.apache.org/confluence/display/Hive/Setting+Up+HiveServer2#SettingUpHiveServer2-CookieBasedAuthentication).
 
 ### 5.2、Client Side
 
-- <font color="grey">org.apache.hive.jdbc.HiveConnection class: Implements the java.sql.Connection interface (part of JDBC). An instance of this class holds a reference to a SessionHandle instance which is retrieved when making Thrift API calls to the server.</font>
+- > org.apache.hive.jdbc.HiveConnection class: Implements the java.sql.Connection interface (part of JDBC). An instance of this class holds a reference to a SessionHandle instance which is retrieved when making Thrift API calls to the server.
 
-- <font color="grey">org.apache.hive.jdbc.HiveStatement class: Implements the java.sql.Statement interface (part of JDBC). The client (e.g., Beeline) calls the HiveStatement.execute() method for the query. Inside the execute() method, the Thrift client is used to make API calls.</font>
+- > org.apache.hive.jdbc.HiveStatement class: Implements the java.sql.Statement interface (part of JDBC). The client (e.g., Beeline) calls the HiveStatement.execute() method for the query. Inside the execute() method, the Thrift client is used to make API calls.
 
-- <font color="grey">org.apache.hive.jdbc.HiveDriver class: Implements the java.sql.Driver interface (part of JDBC). The core method is connect() which is used by the JDBC client to initiate a SQL connection.</font>
+- > org.apache.hive.jdbc.HiveDriver class: Implements the java.sql.Driver interface (part of JDBC). The core method is connect() which is used by the JDBC client to initiate a SQL connection.
 
 ### 5.3、Interaction between Client and Server
 
-- <font color="grey">org.apache.hive.service.cli.SessionHandle class: Session identifier. Instances of this class are returned from the server and used by the client as input for Thrift API calls.</font>
+- > org.apache.hive.service.cli.SessionHandle class: Session identifier. Instances of this class are returned from the server and used by the client as input for Thrift API calls.
 
-- <font color="grey">org.apache.hive.service.cli.OperationHandle class: Operation identifier. Instances of this class are returned from the server and used by the client to poll the execution status of an operation.</font>
+- > org.apache.hive.service.cli.OperationHandle class: Operation identifier. Instances of this class are returned from the server and used by the client to poll the execution status of an operation.
 
 ## 6、Resources
 
