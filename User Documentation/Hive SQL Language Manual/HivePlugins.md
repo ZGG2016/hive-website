@@ -6,7 +6,7 @@
 
 > First, you need to create a new class that extends UDF, with one or more methods named evaluate.
 
-首先**建一个新类，继承 UDF，重写一个或多个(重载) evaluate 方法**。
+首先**建一个新类，继承 UDF，具有一个或多个 evaluate 方法**。
 
 ```java
 package com.example.hive.udf;
