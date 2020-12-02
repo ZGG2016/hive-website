@@ -115,9 +115,214 @@ Time taken: 0.038 seconds, Fetched: 1 row(s)
 
 ## 4、Built-in Table-Generating Functions (UDTF)
 
+> Normal user-defined functions, such as concat(), take in a single input row and output a single output row. In contrast, table-generating functions transform a single input row to multiple output rows.
+
+**正常的用户定义的函数，如 `concat()`，接受一行输入数据，输出一行输出数据。而表生成函数则转换一行数据成多行输出数据**。
+
+Row-set columns types |  Name(Signature)  | Description
+---|:---|:---
+T  | explode(ARRAY<T> a)  | Explodes an array to multiple rows. Returns a row-set with a single column (col), one row for each element from the array.【原数组的每个元素一行，一行仅一列数据】
+Tkey,Tvalue | explode(MAP<Tkey,Tvalue> m) | Explodes a map to multiple rows. Returns a row-set with a two columns (key,value) , one row for each key-value pair from the input map. (As of Hive 0.8.0.).【原map中的一个键值对一行，一行两列数据】
+int,T | posexplode(ARRAY<T> a) | Explodes an array to multiple rows with additional positional column of int type (position of items in the original array, starting with 0). Returns a row-set with two columns (pos,val), one row for each element from the array.【类似explode，但还会返回元素在原数组的索引位置，从0开始】
+T1,...,Tn | inline(ARRAY<STRUCT<f1:T1,...,fn:Tn>> a) | Explodes an array of structs to multiple rows. Returns a row-set with N columns (N = number of top level elements in the struct), one row per struct from the array. (As of Hive [0.10](https://issues.apache.org/jira/browse/HIVE-3238).)【返回具有n列的行集，每个struct一行数据】
+T1,...,Tn/r | stack(int r,T1 V1,...,Tn/r Vn) | Breaks up n values V1,...,Vn into r rows. Each row will have n/r columns. r must be constant.【把V1,...,Vn这n个值转成n行。每行有n/r列，r是常数】
+string1,...,stringn | json_tuple(string jsonStr,string k1,...,string kn) | Takes JSON string and a set of n keys, and returns a tuple of n values. This is a more efficient version of the get_json_object UDF because it can get multiple keys with just one call.【接受JSON字符串和n个keys，返回有n个值的元组，这比get_json_object更高效，因为它每次调用，会获取多个keys】
+string 1,...,stringn | parse_url_tuple(string urlStr,string p1,...,string pn) | Takes URL string and a set of n URL parts, and returns a tuple of n values. This is similar to the parse_url() UDF but can extract multiple parts at once out of a URL. Valid part names are: HOST, PATH, QUERY, REF, PROTOCOL, AUTHORITY, FILE, USERINFO, QUERY:<KEY>.【接受URL字符串和n个URL，返回有n个值的元组，类似parse_url()，但这可用依次抽取一个url的多个部分。】
+
+**Usage Examples**
+
+**explode (array)**
+
+```sql
+select explode(array('A','B','C'));
+select explode(array('A','B','C')) as col;
+select tf.* from (select 0) t lateral view explode(array('A','B','C')) tf;
+select tf.* from (select 0) t lateral view explode(array('A','B','C')) tf as col;
+```
+
+|col|
+|-|
+|A|
+|B|
+|C|
+
+
+**explode (map)**
+
+```sql
+select explode(map('A',10,'B',20,'C',30));
+select explode(map('A',10,'B',20,'C',30)) as (key,value);
+select tf.* from (select 0) t lateral view explode(map('A',10,'B',20,'C',30)) tf;
+select tf.* from (select 0) t lateral view explode(map('A',10,'B',20,'C',30)) tf as key,value;
+```
+
+|key|value|
+|-|-|
+|A|10|
+|B|20|
+|C|30|
+
+**posexplode (array)**
+
+```sql
+select posexplode(array('A','B','C'));
+select posexplode(array('A','B','C')) as (pos,val);
+select tf.* from (select 0) t lateral view posexplode(array('A','B','C')) tf;
+select tf.* from (select 0) t lateral view posexplode(array('A','B','C')) tf as pos,val;
+```
+
+|pos|val|
+|-|-|
+|0|A|
+|1|B|
+|2|C|
+ 
+
+**inline (array of structs)**
+
+```sql
+select inline(array(struct('A',10,date '2015-01-01'),struct('B',20,date '2016-02-02')));
+select inline(array(struct('A',10,date '2015-01-01'),struct('B',20,date '2016-02-02'))) as (col1,col2,col3);
+select tf.* from (select 0) t lateral view inline(array(struct('A',10,date '2015-01-01'),struct('B',20,date '2016-02-02'))) tf;
+select tf.* from (select 0) t lateral view inline(array(struct('A',10,date '2015-01-01'),struct('B',20,date '2016-02-02'))) tf as col1,col2,col3;
+```
+
+|col1|col2|col3|
+|-|-|-|
+|A|10|2015-01-01|
+|B|20|2016-02-02|
+
+**stack (values)**
+
+```sql
+select stack(2,'A',10,date '2015-01-01','B',20,date '2016-01-01');
+select stack(2,'A',10,date '2015-01-01','B',20,date '2016-01-01') as (col0,col1,col2);
+select tf.* from (select 0) t lateral view stack(2,'A',10,date '2015-01-01','B',20,date '2016-01-01') tf;
+select tf.* from (select 0) t lateral view stack(2,'A',10,date '2015-01-01','B',20,date '2016-01-01') tf as col0,col1,col2;
+```
+ 
+|col1|col2|col3|
+|-|-|-|
+|A|10|2015-01-01|
+|B|20|2016-01-01|
+
+
+> Using the syntax "SELECT udtf(col) AS colAlias..." has a few limitations:
+
+使用 `SELECT udtf(col) AS colAlias...` 有以下几个限制：
+
+- `SELECT` 中不允许再有其他表达式
+	- `SELECT pageid, explode(adid_list) AS myCol...` 是不允许的
+
+- UDTF 不能被嵌套
+	- `SELECT explode(explode(adid_list)) AS myCol...`是不允许的
+
+- `GROUP BY / CLUSTER BY / DISTRIBUTE BY / SORT BY`是不允许的
+	- `SELECT explode(adid_list) AS myCol ... GROUP BY myCol`是不允许的
+
+> No other expressions are allowed in SELECT
+
+> SELECT pageid, explode(adid_list) AS myCol... is not supported
+
+> UDTF's can't be nested
+
+> SELECT explode(explode(adid_list)) AS myCol... is not supported
+
+> GROUP BY / CLUSTER BY / DISTRIBUTE BY / SORT BY is not supported
+
+> SELECT explode(adid_list) AS myCol ... GROUP BY myCol is not supported
+
+请查看 LanguageManual LateralView 找到没有这些限制的替代语法。
+
+如果想创建自定义 UDTF，请参阅 Writing UDTFs。
+
+> Please see [LanguageManual LateralView](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+LateralView) for an alternative syntax that does not have these limitations.
+
+> Also see [Writing UDTFs](https://cwiki.apache.org/confluence/display/Hive/DeveloperGuide+UDTF) if you want to create a custom UDTF.
+
 ### 4.1、explode
 
+> explode() takes in an array (or a map) as an input and outputs the elements of the array (map) as separate rows. UDTFs can be used in the SELECT expression list and as a part of LATERAL VIEW.
+
+**`explode()` 可以将数组或 map 作为输入，然后作为独立的行 输出数组或 map 中的元素**。
+
+UDTFs 可以用在 `SELECT` 表达式列表中，作为 `LATERAL VIEW` 的一部分。
+
+> As an example of using explode() in the SELECT expression list, consider a table named myTable that has a single column (myCol) and two rows:
+
+在 `SELECT` 表达式列表中使用 `explode()` 的示例。
+
+表 myTable 有一列 myCol，和两行：
+
+|Array(int) myCol| 
+|-|
+|[400,500,600]|
+|[100,200,300]|
+
+> Then running the query:
+
+执行如下查询：
+
+```sql
+SELECT explode(myCol) AS myNewCol FROM myTable;
+```
+
+> will produce:
+
+|(int)myNewCol|
+|-|
+|100|
+|200|
+|300|
+|400|
+|500|
+|600|
+
+> The usage with Maps is similar:
+
+对 Maps 的使用类似：
+
+```sql
+SELECT explode(myMap) AS (myMapKey, myMapValue) FROM myMapTable;
+```
+
 ### 4.2、posexplode
+
+> Version:Available as of Hive 0.13.0. See [HIVE-4943](https://issues.apache.org/jira/browse/HIVE-4943).
+
+Hive 0.13.0 可用。
+
+> posexplode() is similar to explode but instead of just returning the elements of the array it returns the element as well as its position in the original array.
+
+`posexplode()` 类似于 `explode`，但是会**返回数组元素和在这个数组中对于的索引**。
+
+> As an example of using posexplode() in the SELECT expression list, consider a table named myTable that has a single column (myCol) and two rows:
+
+在 SELECT 表达式列表中，使用 `posexplode()` 的示例：
+
+|Array(int) myCol| 
+|-|
+|[400,500,600]|
+|[100,200,300]|
+
+> Then running the query:
+
+执行如下查询：
+
+```sql
+SELECT posexplode(myCol) AS pos, myNewCol FROM myTable;
+```
+
+> will produce:
+
+|(int)pos | (int)myNewCol|
+|-|-|
+|1 | 100|
+|2 | 200|
+|3 | 300|
+|1 | 400|
+|2 | 500|
+|3 | 600|
 
 ### 4.3、json_tuple
 
