@@ -1,0 +1,1 @@
+# AdminManual Metastore Administration
