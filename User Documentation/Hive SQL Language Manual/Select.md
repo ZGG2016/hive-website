@@ -42,4 +42,4 @@
 
 - Windowing, OVER, and Analytics:[]()
 
-- Common Table Expressions:[]()
+- Common Table Expressions:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Common%20Table%20Expression.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Common%20Table%20Expression.md)
