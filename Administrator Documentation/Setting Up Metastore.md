@@ -1,6 +1,6 @@
 # AdminManual Metastore Administration
 
-This page only documents the MetaStore in Hive 2.x and earlier. For 3.x and later releases please see [AdminManual Metastore 3.0 Administration](https://cwiki.apache.org/confluence/display/Hive/AdminManual+Metastore+3.0+Administration)
+This page only documents the MetaStore in Hive 2.x and earlier. For 3.x and later releases please see [AdminManual Metastore 3.0 Administration](https://github.com/ZGG2016/hive-website/blob/master/Administrator%20Documentation/AdminManual%20Metastore%203.0%20Administration.md)
 
 ## 1、Introduction
 
