@@ -223,7 +223,7 @@ SELECT `(ds|hr)?+.+` FROM sales
 
 > See the following documents for additional syntax and features of SELECT statements:
 
-- GROUP BY:[]()
+- GROUP BY:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Group%20By.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Group%20By.md)
 
 - SORT/ORDER/CLUSTER/DISTRIBUTE BY:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Sort%20Distribute%20Cluster%20Order%20By.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Sort%20Distribute%20Cluster%20Order%20By.md)
 
