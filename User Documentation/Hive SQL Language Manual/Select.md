@@ -142,6 +142,8 @@ FROM page_views JOIN dim_users
 - See also [Group By](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+GroupBy).
 - See also [Sort By / Cluster By / Distribute By / Order By](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+SortBy).
 
+【Partition Filter Syntax：[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Partition%20Filter%20Syntax.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Partition%20Filter%20Syntax.md)】
+
 ### 1.4、HAVING Clause
 
 > Hive added support for the HAVING clause in version 0.7.0. In older versions of Hive it is possible to achieve the same effect by using a subquery, e.g:
@@ -225,7 +227,7 @@ SELECT `(ds|hr)?+.+` FROM sales
 
 - SORT/ORDER/CLUSTER/DISTRIBUTE BY:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Sort%20Distribute%20Cluster%20Order%20By.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Sort%20Distribute%20Cluster%20Order%20By.md)
 
-- UNION:[]()
+- UNION:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Union.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Union.md)
 
 - JOIN
 
@@ -235,7 +237,7 @@ SELECT `(ds|hr)?+.+` FROM sales
 
 - TABLESAMPLE:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Sampling.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Sampling.md)
 
-- Subqueries:[]()
+- Subqueries:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Sub%20Queries.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Sub%20Queries.md)
 
 - Virtual Columns:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Virtual%20Columns.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Virtual%20Columns.md)
 
@@ -243,6 +245,6 @@ SELECT `(ds|hr)?+.+` FROM sales
 
 - LATERAL VIEW:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Lateral%20View.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Lateral%20View.md)
 
-- Windowing, OVER, and Analytics:[]()
+- Windowing, OVER, and Analytics:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Windowing%20and%20Analytics%20Functions.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Windowing%20and%20Analytics%20Functions.md)
 
 - Common Table Expressions:[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Common%20Table%20Expression.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/Hive%20SQL%20Language%20Manual/Common%20Table%20Expression.md)
