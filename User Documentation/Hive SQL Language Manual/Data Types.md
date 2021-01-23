@@ -301,7 +301,7 @@ OK
 > Version:Decimal datatype was introduced in Hive 0.11.0 ([HIVE-2693](https://issues.apache.org/jira/browse/HIVE-2693)) and revised in Hive 0.13.0 ([HIVE-3976](https://issues.apache.org/jira/browse/HIVE-3976)).NUMERIC is the same as DECIMAL as of Hive 3.0.0 ([HIVE-16764](https://issues.apache.org/jira/browse/HIVE-16764)).
 
 版本：Decimal 数据类型在 Hive 0.11.0 中被引入，并在 Hive 0.13.0 中进行了修订。
-NUMERIC 与Hive 3.0.0 的 DECIMAL 相同。
+在 Hive 3.0.0，NUMERIC 与 DECIMAL 相同。。
 
 > The DECIMAL type in Hive is based on Java's [BigDecimal](http://docs.oracle.com/javase/6/docs/api/java/math/BigDecimal.html) which is used for representing immutable arbitrary precision decimal numbers in Java. All regular number operations (e.g. `+`, `-`, `*`, `/`) and relevant UDFs (e.g. Floor, Ceil, Round, and many more) handle decimal types. You can cast to/from decimal types like you would do with other numeric types. The persistence format of the decimal type supports both scientific and non-scientific notation. Therefore, regardless of whether your dataset contains data like 4.004E+3 (scientific notation) or 4004 (non-scientific notation) or a combination of both, DECIMAL can be used for it.
 
@@ -414,7 +414,9 @@ ALTER TABLE foo PARTITION (ds='2008-04-08', hr=12) CHANGE COLUMN dec_column_name
 
 UNIONTYPE 的支持是不完整的。
 
-UNIONTYPE 数据类型在 Hive 0.7.0 中引入，但是 Hive 中对该类型的完全支持仍然不完整。如果 JOIN、WHERE 和 GROUP BY 子句中引用的 UNIONTYPE 字段的查询将会失败，Hive 没有定义语法来提取 UNIONTYPE 的 tag 或 value 字段。这意味着 UNIONTYPEs 是 pass-through-only。
+UNIONTYPE 数据类型在 Hive 0.7.0 中引入，但是 **Hive 中对该类型的完全支持仍然不完整**。
+
+**如果 JOIN、WHERE 和 GROUP BY 子句中引用的 UNIONTYPE 字段的查询将会失败**，**Hive 没有定义语法来提取 UNIONTYPE 的 tag 或 value 字段**。这意味着 UNIONTYPEs 是 pass-through-only。
 
 > Union types can at any one point hold exactly one of their specified data types. You can create an instance of this type using the create_union UDF:
 
@@ -436,7 +438,7 @@ SELECT foo FROM union_test;
 
 > The first part in the deserialized union is the tag which lets us know which part of the union is being used. In this example 0 means the first data_type from the definition which is an int and so on.
 
-反序列化 union 中的第一部分是 tag，它让我们知道 union 的哪一部分正在被使用。在本例中，0 表示定义中的第一个数据类型是一个 int，依此类推。
+反序列化 union 中的第一部分是 **tag**，它**让我们知道 union 的哪一部分正在被使用**。在本例中，0 表示定义中的第一个数据类型是一个 int，依此类推。
 
 > To create a union you have to provide this tag to the create_union UDF:
 
@@ -451,24 +453,456 @@ SELECT create_union(0, key), create_union(if(key<100, 0, 1), 2.0, value), create
 
 ## 3、Literals
 
+### 3.1、Floating Point Types
+
 > Floating point literals are assumed to be DOUBLE. Scientific notation is not yet supported.
 
 假设浮点字面量为 DOUBLE。科学计数法还不支持。
 
-### 3.1、Floating Point Types
-
 #### 3.1.1、Decimal Types
+
+> Version:Decimal datatype was introduced in Hive 0.11.0 ([HIVE-2693](https://issues.apache.org/jira/browse/HIVE-2693)). See [Decimal Datatype](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=27838462#LanguageManualTypes-DecimalDatatype) above.NUMERIC is the same as DECIMAL as of Hive 3.0.0 ([HIVE-16764](https://issues.apache.org/jira/browse/HIVE-16764)).
+
+版本：Decimal 数据类型在 Hive 0.11.0 中被引入。见上面的 Decimal Datatype。在 Hive 3.0.0，NUMERIC 与 DECIMAL 相同。
+
+> Decimal literals provide precise values and greater range for floating point numbers than the DOUBLE type. Decimal data types store exact representations of numeric values, while DOUBLE data types store very close approximations of numeric values.
+
+**Decimal 字面量为浮点数提供了精确的值，和比 DOUBLE 类型更大的范围**。
+
+Decimal 数据类型存储数值的精确表示，而 DOUBLE 数据类型存储数值的非常接近的近似。
+
+> Decimal types are needed for use cases in which the (very close) approximation of a DOUBLE is insufficient, such as financial applications, equality and inequality checks, and rounding operations. They are also needed for use cases that deal with numbers outside the DOUBLE range (approximately -10308 to 10308) or very close to zero (-10-308 to 10-308). For a general discussion of the limits of the DOUBLE type, see the Wikipedia article [Double-precision floating-point format](http://en.wikipedia.org/wiki/Double-precision_floating-point_format).
+
+Decimal 类型需要**用于那些 DOUBLE 数(非常接近的)近似值不足以满足要求的用例**，例如金融应用程序、相等和不相等检查以及舍入操作。
+
+它们还需要**用于处理 DOUBLE 范围之外的数字(大约-10^308到10^308)或非常接近于零(-10^308到10^308)的用例**。
+
+有关 DOUBLE 类型限制的一般性讨论，请参阅维基百科文章 DOUBLE precision 浮点格式。
+
+> The precision of a Decimal type is limited to 38 digits in Hive. See [HIVE-4271](https://issues.apache.org/jira/browse/HIVE-4271) and [HIVE-4320](https://issues.apache.org/jira/browse/HIVE-4320) for comments about the reasons for choosing this limit.
+
+Hive 中的 Decimal 类型的精度限制为 38 位。
 
 ##### 3.1.1.1、Using Decimal Types
 
+> You can create a table in Hive that uses the Decimal type with the following syntax:
+
+在 Hive 中创建一个使用 Decimal 类型的表：
+
+```sql
+create table decimal_1 (t decimal);
+```
+
+> The table decimal_1 is a table having one field of type decimal which is basically a Decimal value.
+
+decimal_1 表是一个有 decimal 类型的字段，基本上是一个 Decimal 值。
+
+> You can read and write values in such a table using either the LazySimpleSerDe or the LazyBinarySerDe. For example:
+
+可以使用 `LazySimpleSerDe` 或 `LazyBinarySerDe` 读写表集中的值。
+
+```sql
+alter table decimal_1 set serde 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe';
+```
+or:
+
+```sql
+alter table decimal_1 set serde 'org.apache.hadoop.hive.serde2.lazy.LazyBinarySerDe';
+```
+
+> You can use a cast to convert a Decimal value to any other primitive type such as a BOOLEAN. For example:
+
+可以将 Decimal 值转换为其他类型的值，例如 BOOLEAN。
+
+```sql
+select cast(t as boolean) from decimal_2;
+```
 ##### 3.1.1.2、Mathematical UDFs
+
+> Decimal also supports many [arithmetic operators](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF#LanguageManualUDF-ArithmeticOperators),[mathematical UDFs](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF#LanguageManualUDF-MathematicalFunctions) and [UDAFs](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF#LanguageManualUDF-Built-inAggregateFunctions(UDAF)) with the same syntax as used in the case of DOUBLE.
+
+Decimal 也**支持许多算术运算符、数学 UDFs 和 UDAFs，其语法与 DOUBLE 中使用的相同**。
+
+> Basic mathematical operations that can use decimal types include:
+
+可以使用 decimal 类型的基本的算术运算有：
+
+- Positive
+- Negative
+- Addition
+- Subtraction
+- Multiplication
+- Division
+- Average (avg)
+- Sum
+- Count
+- Modulus (pmod)
+- Sign – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6246) and later
+- Exp – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Ln – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Log2 – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Log10 – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Log(base) – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Sqrt – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Sin – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Asin – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Cos – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Acos – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Tan – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Atan – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Radians – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6327) and later
+- Degrees – [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6385) and later
+
+> These rounding functions can also take decimal types:
+
+这些近似函数也支持 decimal 类型：
+
+- Floor
+- Ceiling
+- Round
+
+> Power(decimal, n) only supports positive integer values for the exponent n.
+
+`Power(decimal, n)` 的 n 仅支持正整数值。
 
 ##### 3.1.1.3、Casting Decimal Values
 
+> Casting is supported between decimal values and any other primitive type such as integer, double, boolean, and so on.
+
+支持在其他基本类型和 decimal 类型间的转换，如integer、double、boolean等。
+
 ##### 3.1.1.4、Testing Decimal Types
+
+> Two new tests have been added as part of the TestCliDriver framework within Hive. They are decimal_1.q and decimal_2.q. Other tests such as udf7.q cover the gamut of UDFs mentioned above.
+
+Hive 中的 TestCliDriver 框架中增加了两个新测试。他们是 decimal_1.q 和 decimal_2.q。其他测试，如udf7.q，涵盖上述所有 UDFs。
+
+> More tests need to be added that demonstrate failure or when certain types of casts are prevented (for example, casting to date). There is some ambiguity in the round function because the rounding of Decimal does not work exactly as the SQL standard, and therefore it has been omitted in the current work.
+
+需要添加更多的测试来演示失败或防止某些类型的强制转换(例如，转换为date)。在 round 函数中有一些歧义，因为 Decimal 的舍入并不是完全按照 SQL 标准工作的，因此在当前的工作中省略了它。
+
+> For general information about running Hive tests, see [How to Contribute to Apache Hive](https://cwiki.apache.org/confluence/display/Hive/HowToContribute) and [Hive Developer FAQ](https://cwiki.apache.org/confluence/display/Hive/HiveDeveloperFAQ).
+
+有关运行 Hive 测试的一般信息，请参见 How to Contribute to Apache Hive 和 Hive Developer FAQ。
 
 ## 4、Handling of NULL Values
 
+> Missing values are represented by the special value NULL. To import data with NULL fields, check documentation of the SerDe used by the table. (The default Text Format uses LazySimpleSerDe which interprets the string \N as NULL when importing.)
+
+使用 NULL 表示缺失的值。为了导入带有 NULL 的数据，查看表使用的 SerDe 文档。（默认的 Text 格式使用 LazySimpleSerDe，在导入数据时，它将字符串 \N 解释为 NULL） 
+
 ## 5、Change Types
 
+> When [hive.metastore.disallow.incompatible.col.type.changes](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.metastore.disallow.incompatible.col.type.changes) is set to false, the types of columns in Metastore can be changed from any type to any other type. After such a type change, if the data can be shown correctly with the new type, the data will be displayed. Otherwise, the data will be displayed as NULL.
+
+当 `hive.metastore.disallow.incompatible.col.type.changes` 设置为 false 时，Metastore 中列的类型可以从任何类型更改为任何其他类型。在这样的类型更改之后，如果数据可以用新类型正确地显示，数据就会显示出来。否则，数据将显示为 NULL。
+
 ## 6、Allowed Implicit Conversions
+
+见原文：[https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-AllowedImplicitConversions](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-AllowedImplicitConversions)
+
+-------------------------------------------------------
+
+```sql
+-- 建表
+CREATE TABLE decimal_1 (
+  id int,
+  a DECIMAL, -- Defaults to decimal(10,0)
+  b DECIMAL(9, 7)
+);
+
+-- 插入数据
+insert into table decimal_1 values (1,8.65,4.12345678),(2,6.35,1.12345678),(3,12345678901,6.12345678);
+
+-- 查看
+hive> select * from decimal_1;
+OK
+1       9       4.1234568
+2       6       1.1234568
+3       NULL    6.1234568
+
+hive> show create table decimal_1;
+OK
+CREATE TABLE `decimal_1`(
+  `id` int, 
+  `a` decimal(10,0), 
+  `b` decimal(9,7))
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.mapred.TextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  'hdfs://zgg:9000/user/hive/warehouse/decimal_1'
+TBLPROPERTIES (
+  'bucketing_version'='2', 
+  'transient_lastDdlTime'='1611369499')
+
+-- count 函数
+hive> select count(b) from decimal_1;
+OK
+3
+
+-- floor 函数
+hive> select floor(b) from decimal_1 where id=1;
+OK
+4
+
+-- 类型转换
+hive> select cast(b as double) from decimal_1 where id=1;
+OK
+4.1234568
+
+hive> select cast(b as boolean) from decimal_1 where id=1;
+OK
+true
+
+-- 插入一个科学计数法的数字
+insert into table decimal_1 values (4,2.11,4.004E+3);  
+```
+
+```sql
+-- 复杂数据类型测试
+
+-- ------------------------------ ARRAY ------------------------------
+
+-- ARRAY<data_type>
+create table arraytest (id int,info array<string>) 
+row format delimited 
+fields terminated by '\t'
+collection items terminated by ',' 
+stored as textfile;
+
+-- 不要忽略`collection items terminated by ',' 
+-- 它表示数组元素间的分隔符
+-- 如果忽略了输出是这样的：
+hive> select * from arraytest;
+OK
+1       ["zhangsan,male"]
+2       ["lisi,male"]
+
+-- 数据 
+1	zhangsan,male
+2	lisi,male
+
+-- 导入
+load data local inpath '/root/data/arraytest.txt' into table arraytest;
+
+-- 查看
+hive> select * from arraytest;
+OK
+1       ["zhangsan","male"]
+2       ["lisi","male"]
+
+-- 索引查看数组元素
+hive> select id,info[0] from arraytest;
+OK
+1       zhangsan
+2       lisi
+
+-- 将数组的所有元素展开输出
+hive> select explode(info) from arraytest;
+OK
+zhangsan
+male
+lisi
+male
+
+-- ------------------------------ MAP ------------------------------
+
+-- MAP<primitive_type, data_type>
+create table maptest (id int,info map<string,string>) 
+row format delimited 
+fields terminated by '\t'
+collection items terminated by ','
+map keys terminated by ':' 
+stored as textfile;
+
+-- 不要忽略`map keys terminated by ':' 
+-- 它表示键值间的分隔符
+
+-- 数据 
+1	name:zhangsan,sex:male
+2	name:lisi,sex:male
+
+-- 导入
+load data local inpath '/root/data/maptest.txt' into table maptest;
+
+-- 查看
+hive> select * from maptest;
+OK
+1       {"name":"zhangsan","sex":"male"}
+2       {"name":"lisi","sex":"male"}
+
+hive> select id,info["name"] from maptest;
+OK
+1       zhangsan
+2       lisi
+
+
+-- ------------------------------ STRUCT ------------------------------
+
+-- STRUCT<col_name : data_type [COMMENT col_comment], ...>
+create table structtest (id int,info struct<name:string,sex:string>) 
+row format delimited 
+fields terminated by '\t'
+collection items terminated by ','
+stored as textfile;
+
+-- 数据 
+1	zhangsan,male
+2	lisi,male
+
+-- 导入
+load data local inpath '/root/data/structtest.txt' into table structtest;
+
+-- 查看
+hive> select * from structtest;
+OK
+1       {"name":"zhangsan","sex":"male"}
+2       {"name":"lisi","sex":"male"}
+
+hive> select id,info.name from structtest;
+OK
+1       zhangsan
+2       lisi
+
+-- ------------------------------ 综合array\map\struct ------------------------------
+
+create table alltest(
+    id int,
+    name string,
+    salary bigint,
+    sub array<string>,
+    details map<string, int>,
+    address struct<city:string, state:string, pin:int>
+) 
+row format delimited 
+fields terminated by ','
+collection items terminated by '$'
+map keys terminated by '#' 
+stored as textfile;
+
+-- 数据 
+1,abc,40000,a$b$c,pf#500$epf#200,hyd$ap$500001
+2,def,3000,d$f,pf#500,bang$kar$600038
+4,abc,40000,a$b$c,pf#500$epf#200,bhopal$MP$452013
+5,def,3000,d$f,pf#500,Indore$MP$452014
+
+-- 插入数据：load data
+load data local inpath '/root/data/alltest.txt' into table alltest;
+
+-- 查看
+hive> select * from alltest;
+OK
+1       abc     40000   ["a","b","c"]   {"pf":500,"epf":200}    {"city":"hyd","state":"ap","pin":500001}
+2       def     3000    ["d","f"]       {"pf":500}      {"city":"bang","state":"kar","pin":600038}
+4       abc     40000   ["a","b","c"]   {"pf":500,"epf":200}    {"city":"bhopal","state":"MP","pin":452013}
+5       def     3000    ["d","f"]       {"pf":500}      {"city":"Indore","state":"MP","pin":452014}
+
+-- ------------------------------ UNIONTYPE ------------------------------
+
+-- create_union(tag, val1, val2, ...)
+-- Creates a union type with the value that is being pointed to by the tag parameter. 
+
+-- ---- 简单示例：里面都是基本类型 ------
+
+create table uniontest(
+    id int,
+    info uniontype<string,string>
+) 
+row format delimited 
+fields terminated by '\t'
+collection items terminated by ','
+stored as textfile;
+
+-- 插入数据：insert into
+-- tag 索引后面的值是从 0 开始的
+insert into table uniontest 
+    values
+    (1,create_union(0,"zhangsan","male")),  -- 使用 "zhangsan"
+    (1,create_union(1,"zhangsan","male")),  -- 使用 "male"
+    (2,create_union(0,"lisi","female")),
+    (2,create_union(1,"lisi","female"));
+
+-- 查看
+hive> select * from uniontest;
+OK
+1       {0:"zhangsan"}
+1       {1:"male"}
+2       {0:"lisi"}
+2       {1:"female"}
+
+
+-- 插入数据：load data
+-- 数据 
+1	0,zhangsan
+1	1,male
+2	0,lisi
+2	1,female
+
+-- 导入
+load data local inpath '/root/data/uniontest.txt' into table uniontest;
+
+-- 查看
+hive> select * from uniontest;
+OK
+1       {0:"zhangsan"}
+1       {1:"male"}
+2       {0:"lisi"}
+2       {1:"female"}
+
+-- 如果数据格式是这样的：
+-- 1	0,zhangsan,male
+-- 1	1,zhangsan,male
+-- 2	0,lisi,female
+-- 2	1,lisi,female
+-- 会把后面的字符串当作一个整体，输出：
+-- 1       {0:"zhangsan,male"}
+-- 1       {1:"zhangsan,male"}
+-- 2       {0:"lisi,female"}
+-- 2       {1:"lisi,female"}
+
+
+-- ---- 复杂示例：里面包含复杂类型 ------
+
+create table uniontest_comp(
+    id int,
+    info uniontype<int, 
+                   string,
+                   array<string>,
+                   map<string,string>,
+                   struct<sex:string,age:string>>
+) 
+row format delimited 
+fields terminated by '\t'
+collection items terminated by ','
+stored as textfile;
+
+-- 插入数据
+-- 也可以使用 `insert into table ....select ....`
+insert into table uniontest_comp
+    values
+    (1,create_union(0,1,"zhangsan",array("male","33"),map("sex","male","age","33"),named_struct("sex","male","age","33"))),
+    (1,create_union(1,1,"zhangsan",array("male","33"),map("sex","male","age","33"),named_struct("sex","male","age","33"))),
+    (1,create_union(2,1,"zhangsan",array("male","33"),map("sex","male","age","33"),named_struct("sex","male","age","33"))),
+    (1,create_union(3,1,"zhangsan",array("male","33"),map("sex","male","age","33"),named_struct("sex","male","age","33"))),
+    (1,create_union(4,1,"zhangsan",array("male","33"),map("sex","male","age","33"),named_struct("sex","male","age","33")));
+
+-- 查看
+hive> select * from uniontest_comp;
+OK
+1       {0:1}
+1       {1:"zhangsan"}
+1       {2:["male","33"]}
+1       {3:{"sex":"male","age":"33"}}
+1       {4:{"sex":"male","age":"33"}}
+
+
+-- load data 导入数据待完成
+```
+
+参考：[http://querydb.blogspot.com/2015/11/hive-complex-data-types.html](http://querydb.blogspot.com/2015/11/hive-complex-data-types.html)
+
+--------------------------------------------------------
