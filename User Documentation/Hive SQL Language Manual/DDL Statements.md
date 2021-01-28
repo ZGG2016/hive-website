@@ -1271,42 +1271,1262 @@ Amazon Elastic MapReduce (EMR) 的 Hive 版本的等价命令是:
 
 ##### 1.5.3.3、Alter Table/Partition Touch
 
+	ALTER TABLE table_name TOUCH [PARTITION partition_spec];
+
+> TOUCH reads the metadata, and writes it back. This has the effect of causing the pre/post execute hooks to fire. An example use case is if you have a hook that logs all the tables/partitions that were modified, along with an external script that alters the files on HDFS directly. Since the script modifies files outside of hive, the modification wouldn't be logged by the hook. The external script could call TOUCH to fire the hook and mark the said table or partition as modified.
+
+TOUCH 读取元数据，并将其写回来。这将导致触发前/后执行钩子。【？？？】
+
+一个示例用例是，如果你有一个钩子记录所有被修改的表/分区，以及一个直接修改 HDFS 文件的外部脚本。因为脚本修改了在 hive 之外的文件，所以修改不会被钩子记录下来。外部脚本可以调用 TOUCH 来触发钩子，并将该表或分区标记为修改过的。
+
+> Also, it may be useful later if we incorporate reliable last modified times. Then touch would update that time as well.
+
+此外，如果我们加入可靠的最后修改时间，它可能会在以后有用。然后 touch 也会更新那个时间。
+
+> Note that TOUCH doesn't create a table or partition if it doesn't already exist. (See [LanguageManual DDL#Create Table](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-CreateTable).)
+
+注意，如果一个表或分区不存在，TOUCH 不会创建。
+
 ##### 1.5.3.4、Alter Table/Partition Protections
+
+> Version information. As of Hive 0.7.0 ([HIVE-1413](https://issues.apache.org/jira/browse/HIVE-1413)). The CASCADE clause for NO_DROP was added in HIVE 0.8.0 ([HIVE-2605](https://issues.apache.org/jira/browse/HIVE-2605)).
+
+版本信息：从 Hive 0.7.0 开始。NO_DROP 的 CASCADE 子句在 HIVE 0.8.0 中添加。
+
+> This functionality was removed in Hive 2.0.0. This functionality is replaced by using one of the several security options available with Hive (see [SQL Standard Based Hive Authorization](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization)). See [HIVE-11145](https://issues.apache.org/jira/browse/HIVE-11145) for details.
+
+这个功能在 Hive 2.0.0 中被移除。此功能被 Hive 提供的几种安全选项之一所替代。
+
+	ALTER TABLE table_name [PARTITION partition_spec] ENABLE|DISABLE NO_DROP [CASCADE];
+ 
+	ALTER TABLE table_name [PARTITION partition_spec] ENABLE|DISABLE OFFLINE;
+
+> Protection on data can be set at either the table or partition level. Enabling NO_DROP prevents a table from being [dropped](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-DropPartitions). Enabling OFFLINE prevents the data in a table or partition from being queried, but the metadata can still be accessed.
+
+对数据的保护可以在表级或分区级设置。
+
+启用 NO_DROP 可以防止表被删除。启用 OFFLINE 可以防止查询表或分区中的数据，但仍然可以访问其元数据。
+
+> If any partition in a table has NO_DROP enabled, the table cannot be dropped either. Conversely, if a table has NO_DROP enabled then partitions may be dropped, but with NO_DROP CASCADE partitions cannot be dropped either unless the [drop partition command](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-DropPartitions) specifies IGNORE PROTECTION.
+
+如果表中的任何一个分区启用了 NO_DROP，那么该表也不能被删除。
+
+相反，如果一个表启用了 NO_DROP，那么分区可能会被删除，但是使用了 NO_DROP CASCADE 的分区也不能被删除，除非 drop partition 命令指定了 IGNORE PROTECTION。
 
 ##### 1.5.3.5、Alter Table/Partition Compact
 
+> Version information. In Hive release [0.13.0](https://issues.apache.org/jira/browse/HIVE-5317) and later when [transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions) are being used, the ALTER TABLE statement can request [compaction](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-BasicDesign) of a table or partition. As of Hive release [1.3.0 and 2.1.0](https://issues.apache.org/jira/browse/HIVE-13354) when [transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions) are being used, the ALTER TABLE ... COMPACT statement can include a [TBLPROPERTIES](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-TableProperties) clause that is either to change compaction MapReduce job properties or to overwrite any other Hive table properties. More details can be found [here](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-TableProperties).
+
+版本信息：
+
+在 Hive 0.13.0 及以后的版本中，当正在使用事务时，ALTER TABLE 语句可以请求对表或分区进行 compaction。
+
+在 Hive 1.3.0 和 2.1.0 版本中，当正在使用事务时，ALTER TABLE … COMPACT 语句可以包含一个 TBLPROPERTIES 子句，用于更改 compaction MapReduce job 的属性或覆盖其他 Hive 表的属性。更多详情请点击这里。
+
+	ALTER TABLE table_name [PARTITION (partition_key = 'partition_value' [, ...])]
+	  COMPACT 'compaction_type'[AND WAIT]
+	  [WITH OVERWRITE TBLPROPERTIES ("property"="value" [, ...])];
+
+> In general you do not need to request compactions when Hive [transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions) are being used, because the system will detect the need for them and initiate the compaction. However, if compaction is turned off for a table or you want to compact the table at a time the system would not choose to, ALTER TABLE can initiate the compaction. By default the statement will enqueue a request for compaction and return. To watch the progress of the compaction, use SHOW [COMPACTIONS](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-ShowCompactions). As of Hive [2.2.0](https://issues.apache.org/jira/browse/HIVE-15920) "AND WAIT" may be specified to have the operation block until compaction completes.
+
+一般情况下，当使用 Hive 事务时，你不需要请求 compactions，因为系统会检测到它们的需要，并启动 compaction。
+
+但是，如果对表关闭了 compaction，或者你想在系统不选择的时候 compact 表，那么 ALTER TABLE 可以初始化 compaction。
+
+默认情况下，该语句将对 compaction 请求进行排队，并返回。要查看 compaction 过程，可以使用 SHOW COMPACTIONS 。在 Hive 2.2.0 版本中，“AND WAIT” 可以指定操作块直到 compaction 完成。
+
+> The compaction_type can be MAJOR or MINOR. See the Basic Design section in [Hive Transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-BasicDesign) for more information.
+
+compaction_type 可以是 MAJOR 或 MINOR。有关更多信息，请参阅 Hive Transactions 中的 Basic Design 部分。
+
 ##### 1.5.3.6、Alter Table/Partition Concatenate
 
+> Version information. In Hive release [0.8.0](https://issues.apache.org/jira/browse/HIVE-1950) RCFile added support for fast block level merging of small RCFiles using concatenate command. In Hive release [0.14.0](https://issues.apache.org/jira/browse/HIVE-7509) ORC files added support fast stripe level merging of small ORC files using concatenate command.
+
+版本信息：在 Hive 0.8.0 版本，增加了使用 concatenate 命令对小的 RCFiles 的快速的块级别的合并的支持。在 Hive 0.14.0 版本中，增加了使用 concatenate 命令对小的 ORC 的快速的条带级别的合并的支持。
+
+	ALTER TABLE table_name [PARTITION (partition_key = 'partition_value' [, ...])] CONCATENATE;
+
+> If the table or partition contains many small RCFiles or ORC files, then the above command will merge them into larger files. In case of RCFile the merge happens at block level whereas for ORC files the merge happens at stripe level thereby avoiding the overhead of decompressing and decoding the data.
+
+如果表或分区包含许多小的 RCFiles 或 ORC 文件，那么上面的命令将把它们合并到更大的文件中。在 RCFile 的情况下，合并发生在块的级别，而对于 ORC 文件，合并发生在条带级别，因此避免了解压和解码数据的开销。
+
 ##### 1.5.3.7、Alter Table/Partition Update columns
+
+> Version information. In Hive release [3.0.0](https://issues.apache.org/jira/browse/HIVE-15995) this command was added to let the user sync serde stored schema information to metastore.
+
+版本信息：在 Hive 3.0.0 中，添加这个命令是为了让用户同步 serde 存储模式信息到 metastore。
+
+	ALTER TABLE table_name [PARTITION (partition_key = 'partition_value' [, ...])] UPDATE COLUMNS;
+
+> Tables that have serdes which self-describe the table schema may have different schemas in reality and the ones stored in Hive Metastore. For example when a user creates an Avro stored table using a schema url or schema literal, the schema will be inserted into HMS and then will never be changed in HMS regardless of url or literal changes within the serde. This can lead to problems especially when integrating with other Apache components.
+
+具有自描述表模式的 serdes 的表在现实中可能具有不同的模式，and the ones stored in Hive Metastore.。
+
+例如，当用户使用模式 url 或模式字面量创建一个 Avro 存储表时，该模式将被插入 HMS，然后无论 serde 中的url或字面量发生了什么更改，都不会在 HMS 中更改。这可能会导致问题，特别是在与其他 Apache 组件集成时。
+
+> The update columns feature provides a way for the user to let any schema changes made in the serde to be synced into HMS. It works on both the table and the partitions levels, and obviously only for tables whose schema is not tracked by HMS (see metastore.serdes.using.metastore.for.schema). Using the command on these latter serde types will result in error.
+
+更新列特性为用户提供了一种方法，可以将 serde 中进行的任何模式的更改同步到 HMS 中。它可以在表和分区级别上工作，而且显然只适用于 HMS 没有跟踪其模式的表。在后一种 serde 类型上使用该命令将导致错误。
 
 #### 1.5.4、Alter Column
 
 ##### 1.5.4.1、Rules for Column Names
 
+> Column names are case insensitive.
+
+列名不区分大小写。
+
+> Version information. In Hive release 0.12.0 and earlier, column names can only contain alphanumeric and underscore characters. In Hive release 0.13.0 and later, by default column names can be specified within backticks and contain any [Unicode](http://en.wikipedia.org/wiki/List_of_Unicode_characters) character ([HIVE-6013](https://issues.apache.org/jira/browse/HIVE-6013)), however, dot and colon yield errors on querying. Within a string delimited by backticks, all characters are treated literally except that double backticks represent one backtick character. The pre-0.13.0 behavior can be used by setting [hive.support.quoted.identifiers](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.support.quoted.identifiers) to none, in which case backticked names are interpreted as regular expressions. See [Supporting Quoted Identifiers in Column Names](https://issues.apache.org/jira/secure/attachment/12618321/QuotedIdentifier.html) for details. Backtick quotation enables the use of reserved keywords for column names, as well as table names.
+
+版本信息：
+
+在 Hive 0.12.0 和更早的版本中，列名只能包含字母数字和下划线字符。
+
+在 Hive 0.13.0 及更高版本中，默认情况下列名可以用反引号来指定，并且包含任何 Unicode 字符，但是，点号和冒号会在查询时产生错误。
+
+在由反引号分隔的字符串中，除了双反引号表示一个反引号字符外，所有字符都按字面处理。0.13.0 之前的行为可以通过设置 `hive.support.quoted.identifiers` 为 none，在这种情况下，反引号名称被解释为正则表达式。有关详细信息，请参阅在 Supporting Quoted Identifiers in Column Names。
+
+反引号允许对列名和表名使用保留关键字。
+
 ##### 1.5.4.2、Change Column Name/Type/Position/Comment
+
+	ALTER TABLE table_name [PARTITION partition_spec] CHANGE [COLUMN] col_old_name col_new_name column_type
+	[COMMENT col_comment] [FIRST|AFTER column_name] [CASCADE|RESTRICT];
+
+> This command will allow users to change a column's name, [data type](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types), comment, or position, or an arbitrary combination of them. The PARTITION clause is available in Hive 0.14.0 and later; see [Upgrading Pre-Hive 0.13.0 Decimal Columns](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-UpgradingPre-Hive0.13.0DecimalColumns) for usage. A patch for Hive 0.13 is also available (see [HIVE-7971](https://issues.apache.org/jira/browse/HIVE-7971)).
+
+此命令将允许用户更改列的名称、数据类型、注释或位置，或它们的任意组合。
+
+PARTITION 子句在 Hive 0.14.0 及以后版本中可用；用法请参见 Upgrading Pre-Hive 0.13.0 Decimal Columns。Hive 0.13 的补丁也可用(参见Hive-7971)
+
+> The CASCADE|RESTRICT clause is available in [Hive 1.1.0](https://issues.apache.org/jira/browse/HIVE-8839). ALTER TABLE CHANGE COLUMN with CASCADE command changes the columns of a table's metadata, and cascades the same change to all the partition metadata. RESTRICT is the default, limiting column change only to table metadata.
+ 
+CASCADE|RESTRICT 子句在 Hive 1.1.0 中可用。
+
+ALTER TABLE CHANGE COLUMN with CASCADE 命令修改表的元数据的列，并将相同的修改级联到所有分区元数据。RESTRICT 是默认值，只限制对表的元数据的列更改。
+
+> ALTER TABLE CHANGE COLUMN CASCADE clause will override the table partition's column metadata regardless of the table or partition's [protection mode](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-AlterTable/PartitionProtections). Use with discretion.
+
+ALTER TABLE CHANGE COLUMN CASCADE 将覆盖表分区的列元数据，而不考虑表或分区的保护模式。使用自由裁量权。
+
+> The column change command will only modify Hive's metadata, and will not modify data. Users should make sure the actual data layout of the table/partition conforms with the metadata definition.
+
+列更改命令只修改 Hive 的元数据，不修改数据。用户应该确保表/分区的实际数据布局与元数据定义一致。
+
+```sql
+CREATE TABLE test_change (a int, b int, c int);
+ 
+// First change column a's name to a1.
+ALTER TABLE test_change CHANGE a a1 INT;
+ 
+// Next change column a1's name to a2, its data type to string, and put it after column b.
+ALTER TABLE test_change CHANGE a1 a2 STRING AFTER b;
+// The new table's structure is:  b int, a2 string, c int.
+  
+// Then change column c's name to c1, and put it as the first column.
+ALTER TABLE test_change CHANGE c c1 INT FIRST;
+// The new table's structure is:  c1 int, b int, a2 string.
+  
+// Add a comment to column a1
+ALTER TABLE test_change CHANGE a1 a1 INT COMMENT 'this is column a1';
+```
 
 ##### 1.5.4.3、Add/Replace Columns
 
+	ALTER TABLE table_name 
+	  [PARTITION partition_spec]                 -- (Note: Hive 0.14.0 and later)
+	  ADD|REPLACE COLUMNS (col_name data_type [COMMENT col_comment], ...)
+	  [CASCADE|RESTRICT]                         -- (Note: Hive 1.1.0 and later)
+
+> ADD COLUMNS lets you add new columns to the end of the existing columns but before the partition columns. This is supported for Avro backed tables as well, for [Hive 0.14](https://issues.apache.org/jira/browse/HIVE-7446) and later.
+
+ADD COLUMNS 允许将新列添加到现有列的末尾，但在分区列之前。这也支持 Avro backed 的表，对于 Hive 0.14 和更高版本。
+
+> REPLACE COLUMNS removes all existing columns and adds the new set of columns. This can be done only for tables with a native SerDe (DynamicSerDe, MetadataTypedColumnsetSerDe, LazySimpleSerDe and ColumnarSerDe). Refer to [Hive SerDe](https://cwiki.apache.org/confluence/display/Hive/DeveloperGuide#DeveloperGuide-HiveSerDe) for more information. REPLACE COLUMNS can also be used to drop columns. For example, "ALTER TABLE test_change REPLACE COLUMNS (a int, b int);" will remove column 'c' from test_change's schema.
+
+REPLACE COLUMNS 删除所有现有列，并添加一组新的列。这只能对具有原生 SerDe 的表(DynamicSerDe、MetadataTypedColumnsetSerDe、LazySimpleSerDe和columnnarserde)进行。更多信息请参考 Hive SerDe。
+
+REPLACE COLUMNS 也可以用于删除列。例如，`ALTER TABLE test_change REPLACE COLUMNS (a int, b int);` 将从 test_change 的模式中删除列 c。
+
+> The PARTITION clause is available in [Hive 0.14.0](https://issues.apache.org/jira/browse/HIVE-7971) and later; see [Upgrading Pre-Hive 0.13.0 Decimal Columns](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-UpgradingPre-Hive0.13.0DecimalColumns) for usage.
+
+PARTITION 子句在 Hive 0.14.0 及以后版本中可用；用法请参见 Upgrading Pre-Hive 0.13.0 Decimal Columns。
+
+> The CASCADE|RESTRICT clause is available in [Hive 1.1.0](https://issues.apache.org/jira/browse/HIVE-8839). ALTER TABLE ADD|REPLACE COLUMNS with CASCADE command changes the columns of a table's metadata, and cascades the same change to all the partition metadata. RESTRICT is the default, limiting column changes only to table metadata.
+
+CASCADE|RESTRICT 子句在 Hive 1.1.0 中可用。
+
+ALTER TABLE ADD|REPLACE COLUMNS with CASCADE 命令修改表的元数据的列，并将相同的更改级联到所有分区的元数据。RESTRICT 是默认值，只限制对表的元数据的列更改。
+
+> ALTER TABLE ADD or REPLACE COLUMNS CASCADE will override the table partition's column metadata regardless of the table or partition's [protection mode](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-AlterTable/PartitionProtections). Use with discretion.
+
+ALTER TABLE ADD 或 REPLACE COLUMNS CASCADE 将覆盖表分区的列元数据，而不考虑表或分区的保护模式。使用自由裁量权。
+
+> The column change command will only modify Hive's metadata, and will not modify data. Users should make sure the actual data layout of the table/partition conforms with the metadata definition.
+
+列更改命令只修改 Hive 的元数据，不修改数据。用户应该确保表/分区的实际数据布局与元数据定义一致。
+
 ##### 1.5.4.4、Partial Partition Specification
+
+> As of Hive 0.14 ([HIVE-8411](https://issues.apache.org/jira/browse/HIVE-8411)), users are able to provide a partial partition spec for certain above alter column statements, similar to dynamic partitioning. So rather than having to issue an alter column statement for each partition that needs to be changed:
+
+在 Hive 0.14 中，用户可以为上面的某些更改列语句提供部分分区规范，这与动态分区类似。因此，不必为每个需要更改的分区发出更改列语句:
+
+```sql
+ALTER TABLE foo PARTITION (ds='2008-04-08', hr=11) CHANGE COLUMN dec_column_name dec_column_name DECIMAL(38,18);
+ALTER TABLE foo PARTITION (ds='2008-04-08', hr=12) CHANGE COLUMN dec_column_name dec_column_name DECIMAL(38,18);
+...
+```
+
+> ... you can change many existing partitions at once using a single ALTER statement with a partial partition specification:
+
+你可以使用一个单独的 ALTER 语句同时更改多个现有分区:
+
+```sql
+// hive.exec.dynamic.partition needs to be set to true to enable dynamic partitioning with ALTER PARTITION
+SET hive.exec.dynamic.partition = true;
+  
+// This will alter all existing partitions in the table with ds='2008-04-08' -- be sure you know what you are doing!
+ALTER TABLE foo PARTITION (ds='2008-04-08', hr) CHANGE COLUMN dec_column_name dec_column_name DECIMAL(38,18);
+ 
+// This will alter all existing partitions in the table -- be sure you know what you are doing!
+ALTER TABLE foo PARTITION (ds, hr) CHANGE COLUMN dec_column_name dec_column_name DECIMAL(38,18);
+```
+
+> Similar to dynamic partitioning, [hive.exec.dynamic.partition](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.exec.dynamic.partition) must be set to true to enable use of partial partition specs during ALTER PARTITION. This is supported for the following operations:
+
+与动态分区类似，在 ALTER PARTITION 期间，`hive.exec.dynamic.partition` 必须设置为 true，以启用部分分区规格。支持以下操作:
+
+- Change column
+- Add column
+- Replace column
+- File Format
+- Serde Properties
 
 ### 1.6、Create/Drop/Alter View
 
+> Version information. View support is only available in Hive 0.6 and later.
+
+版本信息：仅在 Hive 0.6 及之后的版本支持视图。
+
+#### 1.6.1、Create View
+
+	CREATE VIEW [IF NOT EXISTS] [db_name.]view_name [(column_name [COMMENT column_comment], ...) ]
+	  [COMMENT view_comment]
+	  [TBLPROPERTIES (property_name = property_value, ...)]
+	  AS SELECT ...;
+
+> CREATE VIEW creates a view with the given name. An error is thrown if a table or view with the same name already exists. You can use IF NOT EXISTS to skip the error.
+
+CREATE VIEW 创建一个具有给定名称的视图。如果已经存在同名的表或视图，则抛出错误。可以使用 IF NOT EXISTS 来跳过错误。
+
+> If no column names are supplied, the names of the view's columns will be derived automatically from the defining SELECT expression. (If the SELECT contains unaliased scalar expressions such as x+y, the resulting view column names will be generated in the form `_C0`, `_C1`, etc.) When renaming columns, column comments can also optionally be supplied. (Comments are not automatically inherited from underlying columns.)
+
+如果没有提供列名，视图列的名字将自动从定义的 SELECT 表达式中派生。(如果 SELECT 包含无别名的标量表达式，比如x+y，那么生成的视图列名将以 `_C0`， `_C1` 等形式生成)当重命名列时，也可以有选择地提供列注释。(注释不会自动从底层列继承。)
+
+> A CREATE VIEW statement will fail if the view's defining SELECT expression is invalid.
+
+如果视图定义的 SELECT 表达式无效，则 CREATE VIEW 语句将失败。
+
+> Note that a view is a purely logical object with no associated storage. When a query references a view, the view's definition is evaluated in order to produce a set of rows for further processing by the query. (This is a conceptual description; in fact, as part of query optimization, Hive may combine the view's definition with the query's, e.g. pushing filters from the query down into the view.)
+
+注意，视图是一个没有关联存储的纯逻辑对象。当查询引用视图时，将计算视图的定义，以生成一组行，供查询进一步处理。(这是一个概念性的描述；事实上，作为查询优化的一部分，Hive 可能会将视图的定义和查询的定义结合起来，例如将查询中的过滤器从下推到视图中。)
+
+> A view's schema is frozen at the time the view is created; subsequent changes to underlying tables (e.g. adding a column) will not be reflected in the view's schema. If an underlying table is dropped or changed in an incompatible fashion, subsequent attempts to query the invalid view will fail.
+
+视图的模式在视图创建时被冻结；对底层表的后续更改(例如添加一列)不会反映在视图的模式中。如果以不兼容的方式删除或更底层表，则后续查询无效视图的尝试将失败。
+
+> Views are read-only and may not be used as the target of LOAD/INSERT/ALTER. For changing metadata, see [ALTER VIEW](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL#LanguageManualDDL-AlterViewProperties).
+
+视图是只读的，不能作为 LOAD/INSERT/ALTER 的目标。有关更改元数据，请参见 ALTER VIEW。
+
+> A view may contain ORDER BY and LIMIT clauses. If a referencing query also contains these clauses, the query-level clauses are evaluated after the view clauses (and after any other operations in the query). For example, if a view specifies LIMIT 5, and a referencing query is executed as (select * from v LIMIT 10), then at most 5 rows will be returned.
+
+视图可以包含 ORDER BY 和 LIMIT 子句。如果一个引用查询也包含这些子句，那么查询级子句将在视图子句之后(以及查询中的任何其他操作之后)进行计算。例如，如果一个视图指定了 `LIMIT 5`，并且引用查询被执行为 `(select * from v LIMIT 10)`，那么最多返回 5 行。
+
+> Starting with [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-1180), the view's select statement can include one or more common table expressions (CTEs) as shown in the [SELECT syntax](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Select#LanguageManualSelect-SelectSyntax). For examples of CTEs in CREATE VIEW statements, see [Common Table Expression](https://cwiki.apache.org/confluence/display/Hive/Common+Table+Expression#CommonTableExpression-CTEinViews,CTAS,andInsertStatements).
+
+从 Hive 0.13.0 开始，视图的 select 语句可以包括一个或多个 CTEs，如 SELECT 语法中所示。
+
+```sql
+CREATE VIEW onion_referrers(url COMMENT 'URL of Referring page')
+  COMMENT 'Referrers to The Onion website'
+  AS
+  SELECT DISTINCT referrer_url
+  FROM page_view
+  WHERE page_url='http://www.theonion.com';
+```
+
+> Use [SHOW CREATE TABLE](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-ShowCreateTable) to display the CREATE VIEW statement that created a view. As of Hive 2.2.0, [SHOW VIEWS](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-ShowViews) displays a list of views in a database.
+
+使用 SHOW CREATE TABLE 显示创建视图的 CREATE VIEW 语句。从 Hive 2.2.0 开始，SHOW VIEWS 在数据库中显示视图列表。
+
+> Version Information. Originally, the file format for views was hard coded as SequenceFile. Hive 2.1.0 ([HIVE-13736](https://issues.apache.org/jira/browse/HIVE-13736)) made views follow the same defaults as tables and indexes using the [hive.default.fileformat](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.default.fileformat) and [hive.default.fileformat.managed](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.default.fileformat.managed) properties.
+
+版本信息：最初，视图的文件格式被硬编码为 SequenceFile。Hive 2.1.0 使用 `hive.default.fileformat` 和 `hive.default.fileformat.managed`属性使视图遵循与表和索引相同的默认值。
+
+#### 1.6.2、Drop View
+
+	DROP VIEW [IF EXISTS] [db_name.]view_name;
+
+> DROP VIEW removes metadata for the specified view. (It is illegal to use DROP TABLE on a view.)
+
+DROP VIEW 删除指定视图的元数据。(在视图上使用 DROP TABLE 是非法的。)
+
+> When dropping a view referenced by other views, no warning is given (the dependent views are left dangling as invalid and must be dropped or recreated by the user).
+
+当删除一个被其他视图引用的视图时，不会给出警告(依赖的视图将作为无效视图而被悬空，必须由用户删除或重新创建)。
+
+> In Hive 0.7.0 or later, DROP returns an error if the view doesn't exist, unless IF EXISTS is specified or the configuration variable [hive.exec.drop.ignorenonexistent](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.exec.drop.ignorenonexistent) is set to true.
+
+在 Hive 0.7.0 或更高版本中，如果视图不存在，DROP 返回错误，除非指定了 IF EXISTS 或者配置变量 `hive.exec.drop.ignorenonexistent` 设置为 true。
+
+```sql
+DROP VIEW onion_referrers;
+```
+
+#### 1.6.3、Alter View Properties
+
+	ALTER VIEW [db_name.]view_name SET TBLPROPERTIES table_properties;
+	 
+	table_properties:
+	  : (property_name = property_value, property_name = property_value, ...)
+
+> As with ALTER TABLE, you can use this statement to add your own metadata to a view.
+
+和 ALTER TABLE 类似，这个语句用来添加你自己的元数据到一个视图。
+
+#### 1.6.4、Alter View As Select
+
+Version information. As of [Hive 0.11](https://issues.apache.org/jira/browse/HIVE-3834).
+
+	ALTER VIEW [db_name.]view_name AS select_statement;
+
+> Alter View As Select changes the definition of a view, which must exist. The syntax is similar to that for CREATE VIEW and the effect is the same as for CREATE OR REPLACE VIEW.
+
+Alter View As Select 更改视图的定义，该视图必须存在。其语法与 CREATE VIEW 相似，效果与 CREATE 或 REPLACE VIEW 相同。
+
+> Note: The view must already exist, and if the view has partitions, it could not be replaced by Alter View As Select.
+
+注意：视图必须已经存在，如果视图有分区，它不能被 Alter View As Select 代替。
+
 ### 1.7、Create/Drop/Alter Materialized View
+
+> Version information. Materialized view support is only available in Hive 3.0 and later.
+
+版本信息：对物化视图的支持仅在 Hive 3.0 及更高版本中提供。
+
+> This section provides an introduction to Hive materialized views syntax. More information about materialized view support and usage in Hive can be found [here](https://cwiki.apache.org/confluence/display/Hive/Materialized+views).
+
+介绍 Hive 物化视图的语法。关于在 Hive 中支持和使用物化视图的更多信息可以在这里找到。
+
+#### 1.7.1、Create Materialized View
+
+	CREATE MATERIALIZED VIEW [IF NOT EXISTS] [db_name.]materialized_view_name
+	  [DISABLE REWRITE]
+	  [COMMENT materialized_view_comment]
+	  [PARTITIONED ON (col_name, ...)]
+	  [CLUSTERED ON (col_name, ...) | DISTRIBUTED ON (col_name, ...) SORTED ON (col_name, ...)]
+	  [
+	    [ROW FORMAT row_format]
+	    [STORED AS file_format]
+	      | STORED BY 'storage.handler.class.name' [WITH SERDEPROPERTIES (...)]
+	  ]
+	  [LOCATION hdfs_path]
+	  [TBLPROPERTIES (property_name=property_value, ...)]
+	AS SELECT ...;
+
+> CREATE MATERIALIZED VIEW creates a view with the given name. An error is thrown if a table, view or materialized view with the same name already exists. You can use IF NOT EXISTS to skip the error.
+
+CREATE MATERIALIZED VIEW 使用给定的名称创建一个视图。如果已存在同名的表、视图或物化视图，则抛出错误。可以使用 IF NOT EXISTS 来跳过错误。
+
+> The names of the materialized view's columns will be derived automatically from the defining SELECT expression.
+
+物化视图列的名称将自动从定义的 SELECT 表达式派生。
+
+> A CREATE MATERIALIZED VIEW statement will fail if the view's defining SELECT expression is invalid.
+
+如果视图定义的 SELECT 表达式无效，则 CREATE MATERIALIZED VIEW 语句将失败。
+
+> By default, materialized views are enabled to be used by the query optimizer for automatic rewriting when they are created.
+
+默认情况下，启用物化视图，以便查询优化器在创建它们时自动重写它们。
+
+> Version information. PARTITIONED ON is supported as of Hive 3.2.0 ([HIVE-14493](https://issues.apache.org/jira/browse/HIVE-14493)).
+
+> Version information. CLUSTERED/DISTRIBUTED/SORTED ON is supported as of Hive 4.0.0 ([HIVE-18842](https://issues.apache.org/jira/browse/HIVE-18842)).
+
+#### 1.7.2、Drop Materialized View
+
+	DROP MATERIALIZED VIEW [db_name.]materialized_view_name;
+
+> DROP MATERIALIZED VIEW removes metadata and data for this materialized view.
+
+DROP MATERIALIZED VIEW 删除这个物化视图的元数据和数据。
+
+#### 1.7.3、Alter Materialized View
+
+> Once a materialized view has been created, the optimizer will be able to exploit its definition semantics to automatically rewrite incoming queries using materialized views, and hence, accelerate query execution. 
+
+一旦创建了物化视图，优化器将能够利用其定义语义，使用物化视图自动重写传入的查询，从而加速查询执行。
+
+> Users can selectively enable/disable materialized views for rewriting. Recall that, by default, materialized views are enabled for rewriting at creation time. To alter that behavior, the following statement can be used:
+
+用户可以有选择地启用/禁用物化视图，以进行重写。
+
+回想一下，在默认情况下，物化视图在创建时启用重写。要改变这种行为，可以使用下面的语句:
+
+	ALTER MATERIALIZED VIEW [db_name.]materialized_view_name ENABLE|DISABLE REWRITE;
 
 ### 1.8、Create/Drop/Alter Index
 
+> Version information. As of Hive 0.7. Indexing Is Removed since 3.0! See [Indexes design document](https://cwiki.apache.org/confluence/display/Hive/IndexDev)
+
+> This section provides a brief introduction to Hive indexes, which are documented more fully here:
+
+本节简要介绍 Hive 索引，详细文档如下:
+
+- [Overview of Hive Indexes](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Indexing)
+- [Indexes design document](https://cwiki.apache.org/confluence/display/Hive/IndexDev)
+
+> In Hive 0.12.0 and earlier releases, the index name is case-sensitive for CREATE INDEX and DROP INDEX statements. However, ALTER INDEX requires an index name that was created with lowercase letters (see [HIVE-2752](https://issues.apache.org/jira/browse/HIVE-2752)). This bug is fixed in [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-2752) by making index names case-insensitive for all HiveQL statements. For releases prior to 0.13.0, the best practice is to use lowercase letters for all index names.
+
+在 Hive 0.12.0 和更早的版本中，对于 CREATE INDEX 和 DROP INDEX 语句的索引名是区分大小写的。但是，ALTER INDEX 需要一个用小写字母创建的索引名。在 Hive 0.13.0 中，索引名对所有 HiveQL 语句不区分大小写，修复了这个bug。对于 0.13.0 之前的版本，最佳实践是对所有索引名使用小写字母。
+
+#### 1.8.1、Create Index
+
+	CREATE INDEX index_name
+	  ON TABLE base_table_name (col_name, ...)
+	  AS index_type
+	  [WITH DEFERRED REBUILD]
+	  [IDXPROPERTIES (property_name=property_value, ...)]
+	  [IN TABLE index_table_name]
+	  [
+	     [ ROW FORMAT ...] STORED AS ...
+	     | STORED BY ...
+	  ]
+	  [LOCATION hdfs_path]
+	  [TBLPROPERTIES (...)]
+	  [COMMENT "index comment"];
+
+> CREATE INDEX creates an index on a table using the given list of columns as keys. See CREATE INDEX in the [Indexes](https://cwiki.apache.org/confluence/display/Hive/IndexDev#IndexDev-CREATEINDEX) design document.
+
+CREATE INDEX 使用给定的列列表作为键在表上创建索引。请参阅 Indexes 设计文档中的 CREATE INDEX。
+
+#### 1.8.2、Drop Index
+
+	DROP INDEX [IF EXISTS] index_name ON table_name;
+	DROP INDEX drops the index, as well as deleting the index table.
+
+> In Hive 0.7.0 or later, DROP returns an error if the index doesn't exist, unless IF EXISTS is specified or the configuration variable [hive.exec.drop.ignorenonexistent](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.exec.drop.ignorenonexistent) is set to true.
+
+在 Hive 0.7.0 或更高版本中，如果索引不存在，DROP返回错误，除非指定了 IF EXISTS 或者配置变量 `hive.exec.drop.ignorenonexistent` 设置为 true。
+
+#### 1.8.3、Alter Index
+
+	ALTER INDEX index_name ON table_name [PARTITION partition_spec] REBUILD;
+
+> ALTER INDEX ... REBUILD builds an index that was created using the WITH DEFERRED REBUILD clause, or rebuilds a previously built index. If PARTITION is specified, only that partition is rebuilt.
+
+ALTER INDEX ... REBUILD 将生成使用 WITH DEFERRED REBUILD 子句创建的索引，或生成以前生成的索引。如果指定了 PARTITION，则只重建该分区。
+
 ### 1.9、Create/Drop Macro
+
+> Version information. As of Hive [0.12.0](https://issues.apache.org/jira/browse/HIVE-2655).
+
+版本信息：从 Hive 0.12.0 开始。
+
+> Bug fixes:
+
+缺陷修正:
+
+在 Hive 1.3.0 和 2.0.0 之前，当处理相同行时，一个 HiveQL 宏被多次使用，Hive 在所有调用中返回相同的结果，即使参数不同。
+
+在 Hive 1.3.0 和 2.0.0 之前，当处理相同行时，使用多个宏，ORDER BY 子句可能会给出错误的结果。
+
+在 Hive 2.1.0 之前，当处理相同行时，使用多个宏，后面的宏的结果会被第一个宏的结果覆盖。
+
+> Prior to [Hive 1.3.0 and 2.0.0](https://issues.apache.org/jira/browse/HIVE-11432) when a HiveQL macro was used more than once while processing the same row, Hive returned the same result for all invocations even though the arguments were different. (See [HIVE-11432](https://issues.apache.org/jira/browse/HIVE-11432).)
+
+> Prior to [Hive 1.3.0 and 2.0.0](https://issues.apache.org/jira/browse/HIVE-12277) when multiple macros were used while processing the same row, an ORDER BY clause could give wrong results. (See [HIVE-12277](https://issues.apache.org/jira/browse/HIVE-12277).)
+
+> Prior to [Hive 2.1.0](https://issues.apache.org/jira/browse/HIVE-13372) when multiple macros were used while processing the same row, results of the later macros were overwritten by that of the first. (See [HIVE-13372](https://issues.apache.org/jira/browse/HIVE-13372).)
+
+> Hive 0.12.0 introduced macros to HiveQL, prior to which they could only be created in Java.
+
+Hive 0.12.0 在 HiveQL 中引入了宏，在此之前，宏只能在 Java 中创建。
+
+#### 1.9.1、Create Temporary Macro
+
+	CREATE TEMPORARY MACRO macro_name([col_name col_type, ...]) expression;
+
+> CREATE TEMPORARY MACRO creates a macro using the given optional list of columns as inputs to the expression. Macros exist for the duration of the current session.
+
+CREATE TEMPORARY MACRO 使用给定的可选列列表作为表达式的输入创建一个宏。宏存在于当前会话期间。
+
+```sql
+CREATE TEMPORARY MACRO fixed_number() 42;
+CREATE TEMPORARY MACRO string_len_plus_two(x string) length(x) + 2;
+CREATE TEMPORARY MACRO simple_add (x int, y int) x + y;
+```
+
+#### 1.9.2、Drop Temporary Macro
+
+	DROP TEMPORARY MACRO [IF EXISTS] macro_name;
+
+> DROP TEMPORARY MACRO returns an error if the function doesn't exist, unless IF EXISTS is specified.
+
+如果函数不存在，则 DROP TEMPORARY MACRO 返回错误，除非指定了 IF EXISTS。
 
 ### 1.10、Create/Drop/Reload Function
 
+#### 1.10.1、Temporary Functions
+
+##### 1.10.1.1、Create Temporary Function
+
+	CREATE TEMPORARY FUNCTION function_name AS class_name;
+
+> This statement lets you create a function that is implemented by the class_name. You can use this function in Hive queries as long as the session lasts. You can use any class that is in the class path of Hive. You can add jars to class path by executing 'ADD JAR' statements. Please refer to the CLI section [Hive Interactive Shell Commands](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Cli#LanguageManualCli-HiveInteractiveShellCommands), including [Hive Resources](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Cli#LanguageManualCli-HiveResources), for more information on how to add/delete files from the Hive classpath. Using this, you can register User Defined Functions (UDF's).
+
+该语句允许你创建一个由 class_name 实现的函数。
+
+在 Hive 查询中，只要会话持续，就可以使用此函数。
+
+你可以使用 Hive 类路径中的任何类。
+
+你可以通过执行 ADD JAR 语句将 JAR 添加到类路径中。
+
+关于如何从 Hive 类路径中添加/删除文件的更多信息，请参考 CLI 部分的 Hive Interactive Shell Commands，包括 Hive Resources。使用它，你可以注册用户定义的函数(UDF)。
+
+> Also see [Hive Plugins](https://cwiki.apache.org/confluence/display/Hive/HivePlugins) for general information about creating custom UDFs.
+
+有关创建自定义 UDFs 的一般信息，请参阅 Hive Plugins。
+
+##### 1.10.1.2、Drop Temporary Function
+
+> You can unregister a UDF as follows:
+
+注销 UDF 的方法如下:
+
+	DROP TEMPORARY FUNCTION [IF EXISTS] function_name;
+
+> In Hive 0.7.0 or later, DROP returns an error if the function doesn't exist, unless IF EXISTS is specified or the configuration variable [hive.exec.drop.ignorenonexistent](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.exec.drop.ignorenonexistent) is set to true.
+
+在 Hive 0.7.0 或更高版本中，如果函数不存在，DROP将返回错误，除非指定了 IF EXISTS 或者配置变量 `hive.exec.drop.ignorenonexistent` 设置为 true。
+
+#### 1.10.2、Permanent Functions
+
+> In Hive 0.13 or later, functions can be registered to the metastore, so they can be referenced in a query without having to create a temporary function each session.
+
+在 Hive 0.13 或更高版本中，函数可以注册到 metastore 中，这样它们就可以在查询中被引用，而不必在每个会话中创建一个临时函数。
+
+##### 1.10.2.1、Create Function
+
+> Version information. As of Hive 0.13.0 ([HIVE-6047](https://issues.apache.org/jira/browse/HIVE-6047)).
+
+版本信息：从 Hive 0.13.0 开始。
+
+	CREATE FUNCTION [db_name.]function_name AS class_name
+	  [USING JAR|FILE|ARCHIVE 'file_uri' [, JAR|FILE|ARCHIVE 'file_uri'] ];
+
+> This statement lets you create a function that is implemented by the class_name. Jars, files, or archives which need to be added to the environment can be specified with the USING clause; when the function is referenced for the first time by a Hive session, these resources will be added to the environment as if [ADD JAR/FILE](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Cli#LanguageManualCli-HiveResources) had been issued. If Hive is not in local mode, then the resource location must be a non-local URI such as an HDFS location.
+
+该语句允许你创建一个由 class_name 实现的函数。
+
+需要添加到环境中的jars、文件或归档文件可以使用 USING 子句指定；
+
+当函数第一次被 Hive 会话引用时，这些资源将被添加到环境中，就像 `ADD JAR/FILE` 已经被发布一样。
+
+如果 Hive 不是本地模式，则资源位置必须为非本地 URI，例如 HDFS 位置。
+
+> The function will be added to the database specified, or to the current database at the time that the function was created. The function can be referenced by fully qualifying the function name (db_name.function_name), or can be referenced without qualification if the function is in the current database.
+
+函数将被添加到指定的数据库中，或者在创建函数时添加到当前数据库中。函数可以通过完全限定函数名(db_name.function_name)来引用，如果函数在当前数据库中，则可以不限定地引用函数。
+
+##### 1.10.2.2、Drop Function
+
+> Version information. As of Hive 0.13.0 ([HIVE-6047](https://issues.apache.org/jira/browse/HIVE-6047)).
+
+版本信息：从 Hive 0.13.0 开始。
+
+	DROP FUNCTION [IF EXISTS] function_name;
+
+> DROP returns an error if the function doesn't exist, unless IF EXISTS is specified or the configuration variable hive.exec.drop.ignorenonexistent is set to true.
+
+如果函数不存在，DROP 将返回错误，除非指定了 IF EXISTS 或者配置变量 `hive.exec.drop.ignorenonexistent` 设置为 true。
+
+#### 1.10.6、Reload Function
+
+> Version information. As of Hive 1.2.0 ([HIVE-2573](https://issues.apache.org/jira/browse/HIVE-2573)).
+
+版本信息：从 Hive 1.2.0 开始。
+
+	RELOAD (FUNCTIONS|FUNCTION);
+
+> As of [HIVE-2573](https://issues.apache.org/jira/browse/HIVE-2573), creating permanent functions in one Hive CLI session may not be reflected in HiveServer2 or other Hive CLI sessions, if they were started before the function was created. Issuing RELOAD FUNCTIONS within a HiveServer2 or HiveCLI session will allow it to pick up any changes to the permanent functions that may have been done by a different HiveCLI session. Due to backward compatibility reasons RELOAD FUNCTION; is also accepted.
+
+从 Hive-2573 开始，在一个 Hive CLI 会话中创建永久函数可能不会在 HiveServer2 或其他 Hive CLI 会话中反映，如果这些会话在创建函数之前就启动了。
+
+在 HiveServer2 或 HiveCLI 会话中执行 RELOAD FUNCTIONS，将允许它拾取对永久函数的任何更改，这些更改可能由不同的 HiveCLI 会话完成。由于向后兼容的原因，`RELOAD FUNCTION;` 也接受了。
+
 ### 1.11、Create/Drop/Grant/Revoke Roles and Privileges
+
+[Hive deprecated authorization mode/Legacy Mode](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173) has information about these DDL statements:
+
+- [CREATE ROLE](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-Create/DropRole)
+- [GRANT ROLE](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-Grant/RevokeRoles)
+- [REVOKE ROLE](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-Grant/RevokeRoles)
+- [GRANT privilege_type](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-Grant/RevokePrivileges)
+- [REVOKE privilege_type](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-Grant/RevokePrivileges)
+- [DROP ROLE](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-Create/DropRole)
+- [SHOW ROLE GRANT](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-ViewingGrantedRoles)
+- [SHOW GRANT](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-ViewingGrantedPrivileges)
+
+For [SQL standard based authorization](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization) in Hive 0.13.0 and later releases, see these DDL statements:
+
+- Role Management Commands
+
+	- [CREATE ROLE](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-CreateRole)
+	- [GRANT ROLE](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-GrantRole)
+	- [REVOKE ROLE](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-RevokeRole)
+	- [DROP ROLE](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-DropRole)
+	- [SHOW ROLES](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowRoles)
+	- [SHOW ROLE GRANT](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowRoleGrant)
+	- [SHOW CURRENT ROLES](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowCurrentRoles)
+	- [SET ROLE](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-SetRole)
+	- [SHOW PRINCIPALS](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowPrincipals)
+
+- Object Privilege Commands
+
+	- [GRANT privilege_type](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-Grant)
+	- [REVOKE privilege_type](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-Revoke)
+	- [SHOW GRANT](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowGrant)
 
 ### 1.12、Show
 
+> These statements provide a way to query the Hive metastore for existing data and metadata accessible to this Hive system.
+
+这些语句提供了一种查询 Hive metastore 的方法，以获取该 Hive 系统可访问的现有数据和元数据。
+
+#### 1.12.1、Show Databases
+
+	SHOW (DATABASES|SCHEMAS) [LIKE 'identifier_with_wildcards'];
+
+> SHOW DATABASES or SHOW SCHEMAS lists all of the databases defined in the metastore. The uses of SCHEMAS and DATABASES are interchangeable – they mean the same thing.
+
+SHOW DATABASES 或 SHOW SCHEMAS 列出 metastore 中定义的所有数据库。SCHEMAS 和 DATABASES 的使用是可互换的：它们的意思是一样的。
+
+> The optional LIKE clause allows the list of databases to be filtered using a regular expression. Wildcards in the regular expression can only be `*` for any character(s) or `|` for a choice. Examples are `employees`, `emp*`, `emp*|*ees`, all of which will match the database named `employees`.
+
+可选的 LIKE 子句允许使用正则表达式过滤数据库列表。对于任何字符，正则表达式中的通配符只能是`*`，对于一个选择，只能是`|`。
+
+例如 `employees`，`emp*`，`emp*|*ees`，所有这些都将匹配名为 `employees` 的数据库。
+
+> Version information: SHOW DATABASES. Starting from 4.0.0 we accept only SQL type like expressions containing `%` for any character(s), and `_` for a single character. Examples are `employees`, `emp%`, `emplo_ees`, all of which will match the database named `employees`.
+
+版本信息：SHOW DATABASES
+
+从 4.0.0 开始，我们只接受 SQL 类型的表达式，如，任何字符包含 `%`，单个字符包含 `_`。
+
+例如 `employees`，`emp%`'，`emplo_ees`，所有这些都将匹配名为 `employees` 的数据库。
+
+#### 1.12.2、Show Tables/Views/Materialized Views/Partitions/Indexes
+
+##### 1.12.2.1、Show Tables
+
+	SHOW TABLES [IN database_name] ['identifier_with_wildcards'];
+
+> SHOW TABLES lists all the base tables and views in the current database (or the one explicitly named using the IN clause) with names matching the optional regular expression. Wildcards in the regular expression can only be `*` for any character(s) or `|` for a choice. Examples are `page_view`, `page_v*`, `*view|page*`, all which will match the `page_view` table. Matching tables are listed in alphabetical order. It is not an error if there are no matching tables found in metastore. If no regular expression is given then all tables in the selected database are listed.
+
+SHOW TABLES 列出当前数据库中的所有基表和视图(或使用 IN 子句显式地命名的表和视图)，其名称与可选的正则表达式匹配。
+
+正则表达式中，对于任何字符的通配符只能是 `*`，对于一个选择，只能是`|`。
+
+例如`page_view`，`page_v*`，`*view|page*`，所有这些都将匹配 `page_view` 表。
+
+匹配表按字母顺序排列。
+
+如果在 metastore 中没有找到匹配的表，这不是一个错误。如果没有给出正则表达式，则列出所选数据库中的所有表。
+
+##### 1.12.2.2、Show Views
+
+> Version information. Introduced in Hive 2.2.0 via [HIVE-14558](https://issues.apache.org/jira/browse/HIVE-14558).
+
+版本信息：在 Hive 2.2.0 中引入。
+
+	SHOW VIEWS [IN/FROM database_name] [LIKE 'pattern_with_wildcards'];
+
+> SHOW VIEWS lists all the views in the current database (or the one explicitly named using the IN or FROM clause) with names matching the optional regular expression. Wildcards in the regular expression can only be `*` for any character(s) or `|` for a choice. Examples are `page_view`, `page_v*`, `*view|page*`, all which will match the `page_view` view. Matching views are listed in alphabetical order. It is not an error if no matching views are found in metastore. If no regular expression is given then all views in the selected database are listed.
+
+SHOW VIEWS 列出当前数据库中所有视图(或使用 IN 或 FROM 子句显式地命名的视图)，其名称与可选的正则表达式匹配。
+
+正则表达式中，对于任何字符的通配符只能是`*`，对于一个选择，只能是`|`。
+
+例如`page_view`， `page_v*`，`*view|page*`，所有这些都将匹配 `page_view` 视图。
+
+匹配的视图按字母顺序列出。
+
+如果在 metastore 中没有找到匹配的视图，这不是一个错误。如果没有给出正则表达式，则列出所选数据库中的所有视图。
+
+```sql
+SHOW VIEWS;                                -- show all views in the current database
+SHOW VIEWS 'test_*';                       -- show all views that start with "test_"
+SHOW VIEWS '*view2';                       -- show all views that end in "view2"
+SHOW VIEWS LIKE 'test_view1|test_view2';   -- show views named either "test_view1" or "test_view2"
+SHOW VIEWS FROM test1;                     -- show views from database test1
+SHOW VIEWS IN test1;                       -- show views from database test1 (FROM and IN are same)
+SHOW VIEWS IN test1 "test_*";              -- show views from database test2 that start with "test_"
+```
+##### 1.12.2.3、Show Materialized Views
+
+	SHOW MATERIALIZED VIEWS [IN/FROM database_name] [LIKE 'pattern_with_wildcards’];
+
+> SHOW MATERIALIZED VIEWS lists all the views in the current database (or the one explicitly named using the IN or FROM clause) with names matching the optional regular expression. It also shows additional information about the materialized view, e.g., whether rewriting is enabled, and the refresh mode for the materialized view. Wildcards in the regular expression can only be `*` for any character(s) or `|` for a choice. If no regular expression is given then all materialized views in the selected database are listed.
+
+SHOW MATERIALIZED VIEWS 列出当前数据库中的所有视图(或使用 IN 或 FROM 子句显式地命名的视图)，其名称与可选的正则表达式匹配。
+
+它还显示有关物化视图的其他信息，例如，是否启用了重写，以及物化视图的刷新模式。
+
+正则表达式中，对于任何字符的通配符只能是`*`，对于一个选择，只能是`|`。如果没有给出正则表达式，则列出所选数据库中的所有物化视图。
+
+##### 1.12.2.4、Show Partitions
+
+	SHOW PARTITIONS table_name;
+
+> SHOW PARTITIONS lists all the existing partitions for a given base table. Partitions are listed in alphabetical order.
+
+SHOW PARTITIONS 列出给定基表的所有现有分区。分区是按字母顺序排列的。
+
+> Version information. As of Hive 0.6, SHOW PARTITIONS can filter the list of partitions as shown below.
+
+版本信息：在 Hive 0.6 中，SHOW PARTITIONS 可以过滤如下所示的分区列表。
+
+> It is also possible to specify parts of a partition specification to filter the resulting list.
+
+还可以指定分区规范的某些部分来过滤结果列表。
+
+```sql
+SHOW PARTITIONS table_name PARTITION(ds='2010-03-03');            -- (Note: Hive 0.6 and later)
+SHOW PARTITIONS table_name PARTITION(hr='12');                    -- (Note: Hive 0.6 and later)
+SHOW PARTITIONS table_name PARTITION(ds='2010-03-03', hr='12');   -- (Note: Hive 0.6 and later)
+```
+
+> Version information. Starting with Hive 0.13.0, SHOW PARTITIONS can specify a database ([HIVE-5912](https://issues.apache.org/jira/browse/HIVE-5912)).
+
+版本信息：从 Hive 0.13.0 开始，SHOW PARTITIONS 可以指定一个数据库。
+
+	SHOW PARTITIONS [db_name.]table_name [PARTITION(partition_spec)];   -- (Note: Hive 0.13.0 and later)
+
+```sql
+SHOW PARTITIONS databaseFoo.tableBar PARTITION(ds='2010-03-03', hr='12');   -- (Note: Hive 0.13.0 and later)
+```
+
+> Version information. Starting with Hive 4.0.0, SHOW PARTITIONS can optionally use the WHERE/ORDER BY/LIMIT clause to filter/order/limit the resulting list ([HIVE-22458](https://issues.apache.org/jira/browse/HIVE-22458)). These clauses work in a similar way as  they do in a SELECT statement.
+
+版本信息：从 Hive 4.0.0 开始，SHOW PARTITIONS 可以选择性地使用 WHERE/ORDER BY/LIMIT 子句来过滤/排序/限制结果列表。这些子句的工作方式与 SELECT 语句类似。
+
+	SHOW PARTITIONS [db_name.]table_name [PARTITION(partition_spec)] [WHERE where_condition] [ORDER BY col_list] [LIMIT rows];   -- (Note: Hive 4.0.0 and later)
+
+```sql
+SHOW PARTITIONS databaseFoo.tableBar LIMIT 10;                                                               -- (Note: Hive 4.0.0 and later)
+SHOW PARTITIONS databaseFoo.tableBar PARTITION(ds='2010-03-03') LIMIT 10;                                    -- (Note: Hive 4.0.0 and later)
+SHOW PARTITIONS databaseFoo.tableBar PARTITION(ds='2010-03-03') ORDER BY hr DESC LIMIT 10;                   -- (Note: Hive 4.0.0 and later)
+SHOW PARTITIONS databaseFoo.tableBar PARTITION(ds='2010-03-03') WHERE hr >= 10 ORDER BY hr DESC LIMIT 10;    -- (Note: Hive 4.0.0 and later)
+SHOW PARTITIONS databaseFoo.tableBar WHERE hr >= 10 AND ds='2010-03-03' ORDER BY hr DESC LIMIT 10;           -- (Note: Hive 4.0.0 and later)
+```
+
+Note: Please use hr >= 10  instead of hr - 10 >= 0   to filter the results, as Metastore would not push the latter predicate down into the underlying storage.
+
+注意：请使用 hr>= 10 而不是 hr-10>=0 来过滤结果，因为 Metastore 不会将后者的谓词下推到底层存储中。
+
+##### 1.12.2.5、Show Table/Partition Extended
+
+	SHOW TABLE EXTENDED [IN|FROM database_name] LIKE 'identifier_with_wildcards' [PARTITION(partition_spec)];
+
+> SHOW TABLE EXTENDED will list information for all tables matching the given regular expression. Users cannot use regular expression for table name if a partition specification is present. This command's output includes basic table information and file system information like totalNumberFiles, totalFileSize, maxFileSize, minFileSize,lastAccessTime, and lastUpdateTime. If partition is present, it will output the given partition's file system information instead of table's file system information.
+
+SHOW TABLE EXTENDED 将列出与给定正则表达式匹配的所有表的信息。
+
+如果存在分区规范，则用户不能使用正则表达式作为表名。
+
+该命令的输出包括基本表信息和文件系统信息，如 totalNumberFiles、totalFileSize、maxFileSize、minFileSize、lastAccessTime 和 lastUpdateTime。
+
+如果存在分区，它将输出给定分区的文件系统信息，而不是表的文件系统信息。
+
+```sql
+hive> show table extended like part_table;
+OK
+tableName:part_table
+owner:thejas
+location:file:/tmp/warehouse/part_table
+inputformat:org.apache.hadoop.mapred.TextInputFormat
+outputformat:org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+columns:struct columns { i32 i}
+partitioned:true
+partitionColumns:struct partition_columns { string d}
+totalNumberFiles:1
+totalFileSize:2
+maxFileSize:2
+minFileSize:2
+lastAccessTime:0
+lastUpdateTime:1459382233000
+```
+
+##### 1.12.2.6、Show Table Properties
+
+> Version information. As of Hive 0.10.0.
+
+	SHOW TBLPROPERTIES tblname;
+	SHOW TBLPROPERTIES tblname("foo");
+
+> The first form lists all of the table properties for the table in question, one per row separated by tabs. The second form of the command prints only the value for the property that's being asked for.
+
+第一种形式列出了所讨论的表的所有表属性，每行一个属性，用制表符分隔。
+
+命令的第二种形式只打印所请求的属性的值。
+
+For more information, see the [TBLPROPERTIES](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-listTableProperties) clause in Create Table above.
+
+有关更多信息，请参阅上面 Create Table 中的 TBLPROPERTIES 子句。
+
+##### 1.12.2.7、Show Create Table
+
+> Version information. As of [Hive 0.10](https://issues.apache.org/jira/browse/HIVE-967).
+
+	SHOW CREATE TABLE ([db_name.]table_name|view_name);
+
+> SHOW CREATE TABLE shows the CREATE TABLE statement that creates a given table, or the CREATE VIEW statement that creates a given view.
+
+SHOW CREATE TABLE 显示创建给定表的 CREATE TABLE 语句，或创建给定视图的 CREATE VIEW 语句。
+
+##### 1.12.2.8、Show Indexes
+
+> Version information. As of Hive 0.7. Indexing Is Removed since 3.0! See [Indexes design document](https://cwiki.apache.org/confluence/display/Hive/IndexDev)
+
+	SHOW [FORMATTED] (INDEX|INDEXES) ON table_with_index [(FROM|IN) db_name];
+
+> SHOW INDEXES shows all of the indexes on a certain column, as well as information about them: index name, table name, names of the columns used as keys, index table name, index type, and comment. If the FORMATTED keyword is used, then column titles are printed for each column.
+
+SHOW INDEXES 显示某一列上的所有索引，以及有关它们的信息：索引名、表名、用作键的列的名称、索引表名、索引类型和注释。如果使用 FORMATTED 关键字，则会为每一列打印列标题。
+
+#### 1.12.3、Show Columns
+
+> Version information. As of [Hive 0.10](https://issues.apache.org/jira/browse/HIVE-2909).
+
+	SHOW COLUMNS (FROM|IN) table_name [(FROM|IN) db_name];
+
+> SHOW COLUMNS shows all the columns in a table including partition columns.
+
+SHOW COLUMNS 显示表中的所有列，包括分区列。
+
+> Version information. `SHOW COLUMNS (FROM|IN) table_name [(FROM|IN) db_name]  [ LIKE 'pattern_with_wildcards'];` Added in Hive 3.0 by [HIVE-18373](https://issues.apache.org/jira/browse/HIVE-18373).
+
+> SHOW COLUMNS lists all the columns in the table with names matching the optional regular expression. Wildcards in the regular expression can only be `*` for any character(s) or `|` for a choice. Examples are `cola`, `col*`, `*a|col*`, all which will match the `cola` column. Matching columns are listed in alphabetical order. It is not an error if no matching columns are found in table. If no regular expression is given then all columns in the selected table are listed.
+
+SHOW COLUMNS 列出表中 名称与可选正则表达式匹配的所有列。
+
+在正则表达式中，对于任何字符的通配符只能是`*`，对于一个选择，只能是`|`。
+
+例如`cola`，`col*`，`*a|col*`，所有这些都将匹配 `cola` 列。
+
+匹配的列按字母顺序列出。
+
+如果在表中没有找到匹配的列，则不是错误。如果没有给出正则表达式，则列出所选表中的所有列。
+
+```sql
+-- SHOW COLUMNS
+CREATE DATABASE test_db;
+USE test_db;
+CREATE TABLE foo(col1 INT, col2 INT, col3 INT, cola INT, colb INT, colc INT, a INT, b INT, c INT);
+  
+-- SHOW COLUMNS basic syntax
+SHOW COLUMNS FROM foo;                            -- show all column in foo
+SHOW COLUMNS FROM foo "*";                        -- show all column in foo
+SHOW COLUMNS IN foo "col*";                       -- show columns in foo starting with "col"                 OUTPUT col1,col2,col3,cola,colb,colc
+SHOW COLUMNS FROM foo '*c';                       -- show columns in foo ending with "c"                     OUTPUT c,colc
+SHOW COLUMNS FROM foo LIKE "col1|cola";           -- show columns in foo either col1 or cola                 OUTPUT col1,cola
+SHOW COLUMNS FROM foo FROM test_db LIKE 'col*';   -- show columns in foo starting with "col"                 OUTPUT col1,col2,col3,cola,colb,colc
+SHOW COLUMNS IN foo IN test_db LIKE 'col*';       -- show columns in foo starting with "col" (FROM/IN same)  OUTPUT col1,col2,col3,cola,colb,colc
+  
+-- Non existing column pattern resulting in no match
+SHOW COLUMNS IN foo "nomatch*";
+SHOW COLUMNS IN foo "col+";                       -- + wildcard not supported
+SHOW COLUMNS IN foo "nomatch";
+```
+
+#### 1.12.4、Show Functions
+
+	SHOW FUNCTIONS [LIKE "<pattern>"];
+
+> SHOW FUNCTIONS lists all the user defined and builtin functions, filtered by the the regular expression if specified with LIKE.
+
+SHOW FUNCTIONS 列出所有用户定义的和内置的函数，如果用 LIKE 指定，则通过正则表达式进行过滤。
+
+#### 1.12.5、Show Granted Roles and Privileges
+
+[Hive deprecated authorization mode/Legacy Mode](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173) has information about these SHOW statements:
+
+- [SHOW ROLE GRANT](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-ViewingGrantedRoles)
+- [SHOW GRANT](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=45876173#Hivedeprecatedauthorizationmode/LegacyMode-ViewingGrantedPrivileges)
+
+In Hive 0.13.0 and later releases, [SQL standard based authorization](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization) has these SHOW statements:
+
+- [SHOW ROLE GRANT](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowRoleGrant)
+- [SHOW GRANT](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowGrant)
+- [SHOW CURRENT ROLES](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowCurrentRoles)
+- [SHOW ROLES](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowRoles)
+- [SHOW PRINCIPALS](https://cwiki.apache.org/confluence/display/Hive/SQL+Standard+Based+Hive+Authorization#SQLStandardBasedHiveAuthorization-ShowPrincipals)
+
+#### 1.12.6、Show Locks
+
+	SHOW LOCKS <table_name>;
+	SHOW LOCKS <table_name> EXTENDED;
+	SHOW LOCKS <table_name> PARTITION (<partition_spec>);
+	SHOW LOCKS <table_name> PARTITION (<partition_spec>) EXTENDED;
+	SHOW LOCKS (DATABASE|SCHEMA) database_name;     -- (Note: Hive 0.13.0 and later; SCHEMA added in Hive 0.14.0)
+
+> SHOW LOCKS displays the locks on a table or partition. See [Hive Concurrency Model](https://cwiki.apache.org/confluence/display/Hive/Locking) for information about locks.
+
+> SHOW LOCKS (DATABASE|SCHEMA) is supported from Hive 0.13 for DATABASE (see [HIVE-2093](https://issues.apache.org/jira/browse/HIVE-2093)) and Hive 0.14 for SCHEMA (see [HIVE-6601](https://issues.apache.org/jira/browse/HIVE-6601)). SCHEMA and DATABASE are interchangeable – they mean the same thing.
+
+> When [Hive transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions) are being used, SHOW LOCKS returns this information (see [HIVE-6460](https://issues.apache.org/jira/browse/HIVE-6460)):
+
+- database name
+- table name
+- partition name (if the table is partitioned)
+- the state the lock is in, which can be:
+	- "acquired" – the requestor holds the lock
+	- "waiting" – the requestor is waiting for the lock
+	- "aborted" – the lock has timed out but has not yet been cleaned up
+- Id of the lock blocking this one, if this lock is in "waiting" state
+- the type of lock, which can be:
+	- "exclusive" – no one else can hold the lock at the same time (obtained mostly by DDL operations such as drop table)
+	- "shared_read" – any number of other shared_read locks can lock the same resource at the same time (obtained by reads; confusingly, an insert operation also obtains a shared_read lock)
+	- "shared_write" – any number of shared_read locks can lock the same resource at the same time, but no other shared_write locks are allowed (obtained by update and delete)
+- ID of the transaction this lock is associated with, if there is one
+- last time the holder of this lock sent a heartbeat indicating it was still alive
+- the time the lock was acquired, if it has been acquired
+- Hive user who requested the lock
+- host the user is running on
+- agent info – a string that helps identify the entity that issued the lock request. For a SQL client this is the query ID, for streaming client it may be Storm bolt ID for example.
+
+#### 1.12.7、Show Conf
+
+> Version information. As of [Hive 0.14.0](https://issues.apache.org/jira/browse/HIVE-6037).
+
+	SHOW CONF <configuration_name>;
+
+> SHOW CONF returns a description of the specified [configuration property](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties).
+
+SHOW CONF 返回指定配置属性的描述信息。
+
+- default value
+- required type
+- description
+
+> Note that SHOW CONF does not show the current value of a configuration property. For current property settings, use the "set" command in the CLI or a HiveQL script (see [Commands](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Commands)) or in Beeline (see [Beeline Hive Commands](https://cwiki.apache.org/confluence/display/Hive/HiveServer2+Clients#HiveServer2Clients-BeelineHiveCommands)).
+
+注意，SHOW CONF 不显示配置属性的当前值。对于当前的属性设置，可以在 CLI 或 HiveQL 脚本或 Beeline 中使用 set 命令。
+
+#### 1.12.8、Show Transactions
+
+> Version information. As of Hive [0.13.0](https://issues.apache.org/jira/browse/HIVE-6460) (see [Hive Transactions](https://issues.apache.org/jira/browse/HIVE-6460)).
+
+	SHOW TRANSACTIONS;
+
+> SHOW TRANSACTIONS is for use by administrators when [Hive transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions) are being used. It returns a list of all currently open and aborted transactions in the system, including this information:
+
+当使用 Hive 事务时，管理员可以使用 SHOW TRANSACTIONS。
+
+它返回系统中所有当前打开和终止的事务的列表，包括以下信息:
+
+- transaction ID
+- transaction state
+- user who started the transaction
+- machine where the transaction was started
+- timestamp when the transaction was started (as of [Hive 2.2.0](https://issues.apache.org/jira/browse/HIVE-11957))
+- timestamp for last heartbeat (as of [Hive 2.2.0](https://issues.apache.org/jira/browse/HIVE-11957))
+
+#### 1.12.9、Show Compactions
+
+> Version information. As of [Hive 0.13.0](https://issues.apache.org/jira/browse/HIVE-6460) (see [Hive Transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-BasicDesign)).
+
+	SHOW COMPACTIONS;
+
+> [SHOW COMPACTIONS](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-SHOWCOMPACTIONS) returns a list of all tables and partitions currently being [compacted](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-BasicDesign) or scheduled for compaction when [Hive transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions) are being used, including this information:
+
+当使用 Hive 事务时，SHOW COMPACTIONS 返回所有正在被 compact 或计划被 compaction 的表和分区的列表，包括以下信息:
+
+- "CompactionId" - unique internal id (As of Hive 3.0](https://issues.apache.org/jira/browse/HIVE-16084))
+- "Database" - Hive database name
+- "Table" - table name
+- "Partition" - partition name (if the table is partitioned)
+- "Type" - whether it is a major or minor compaction
+- "State" - the state the compaction is in, which can be:
+	- "initiated" – waiting in the queue to be compacted
+	- "working" – being compacted
+	- "ready for cleaning" – the compaction has been done and the old files are scheduled to be cleaned
+	- "failed" – the job failed. The metastore log will have more detail.
+	- "succeeded" – A-ok
+	- "attempted" – initiator attempted to schedule a compaction but failed. The metastore log will have more information.
+- "Worker" - thread ID of the worker thread doing the compaction (only if in working state)
+- "Start Time" - the time at which the compaction started (only if in working or ready for cleaning state)
+- "Duration(ms)" - time this compaction took (As of [Hive 2.2](https://issues.apache.org/jira/browse/HIVE-15337) )
+- "HadoopJobId" - Id of the submitted Hadoop job (As of [Hive 2.2](https://issues.apache.org/jira/browse/HIVE-15337))
+
+> Compactions are initiated automatically, but can also be initiated manually with an [ALTER TABLE COMPACT statement](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-AlterTable/PartitionCompact).
+
+Compactions 是自动启动的，但也可以通过 ALTER TABLE COMPACT 语句手动启动。
+
 ### 1.13、Describe
+
+#### 1.13.1、Describe Database
+
+> Version information. As of Hive 0.7.
+
+	DESCRIBE DATABASE [EXTENDED] db_name;
+	DESCRIBE SCHEMA [EXTENDED] db_name;     -- (Note: Hive 1.1.0 and later)
+
+> DESCRIBE DATABASE shows the name of the database, its comment (if one has been set), and its root location on the filesystem. The uses of SCHEMA and DATABASE are interchangeable – they mean the same thing. DESCRIBE SCHEMA is added in Hive 1.1.0 ([HIVE-8803](https://issues.apache.org/jira/browse/HIVE-8803)).
+
+DESCRIBE DATABASE 显示数据库的名称、它的注释(如果已经设置了注释)以及它在文件系统上的根位置。SCHEMA 和 DATABASE 的使用是可互换的：它们的意思是一样的。DESCRIBE SCHEMA 在 Hive 1.1.0 中添加。
+
+> EXTENDED also shows the [database properties](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-CreateDatabase).
+
+EXTENDED 还显示了数据库属性。
+
+#### 1.13.2、Describe Table/View/Materialized View/Column
+
+> There are two formats for the describe table/view/materialized view/column syntax, depending on whether or not the database is specified.
+
+描述表/视图/物化视图/列语法有两种格式，这取决于是否指定了数据库。
+
+> If the database is not specified, the optional column information is provided after a dot:
+
+如果没有指定数据库，在点的后面提供可选的列信息:
+
+	DESCRIBE [EXTENDED|FORMATTED] 
+	  table_name[.col_name ( [.field_name] | [.'$elem$'] | [.'$key$'] | [.'$value$'] )* ];
+	                                        -- (Note: Hive 1.x.x and 0.x.x only. See "Hive 2.0+: New Syntax" below)
+
+> If the database is specified, the optional column information is provided after a space:
+
+如果指定了数据库，则在空格后提供可选的列信息:
+
+	DESCRIBE [EXTENDED|FORMATTED] 
+	  [db_name.]table_name[ col_name ( [.field_name] | [.'$elem$'] | [.'$key$'] | [.'$value$'] )* ];
+	                                        -- (Note: Hive 1.x.x and 0.x.x only. See "Hive 2.0+: New Syntax" below)
+
+> DESCRIBE shows the list of columns including partition columns for the given table. If the EXTENDED keyword is specified then it will show all the metadata for the table in Thrift serialized form. This is generally only useful for debugging and not for general use. If the FORMATTED keyword is specified, then it will show the metadata in a tabular format.
+
+DESCRIBE 显示列的列表，包括给定表的分区列。
+
+如果指定了 EXTENDED 关键字，那么它将以 Thrift 序列化的形式显示表的所有元数据。这通常只对调试有用，而不适用于一般用途。
+
+如果指定了 FORMATTED 关键字，那么它将以表格格式显示元数据。
+
+> Note: DESCRIBE EXTENDED shows the number of rows only if statistics were gathered when the data was loaded (see [Newly Created Tables](https://cwiki.apache.org/confluence/display/Hive/StatsDev#StatsDev-NewlyCreatedTables)), and if the Hive CLI is used instead of a Thrift client or Beeline. [HIVE-6285](https://issues.apache.org/jira/browse/HIVE-6285) will address this issue. Although ANALYZE TABLE gathers statistics after the data has been loaded (see [Existing Tables](https://cwiki.apache.org/confluence/display/Hive/StatsDev#StatsDev-ExistingTables)), it does not currently provide information about the number of rows.
+
+注意：DESCRIBE EXTENDED 仅在数据加载时收集了统计数据，并且使用 Hive CLI 而不是 Thrift client 或 Beeline 时显示行数。
+
+HIVE-6285 可以解决这个问题。尽管 ANALYZE TABLE 在加载数据之后收集统计信息，但它目前并不提供有关行数的信息。
+
+> If a table has a complex column then you can examine the attributes of this column by specifying table_name.complex_col_name (and field_name for an element of a struct, '$elem$' for array element, '$key$' for map key, and '$value$' for map value). You can specify this recursively to explore the complex column type.
+
+如果一个表有一个复杂的列，那么你可以通过指定 `table_name.complex_col_name` 来检查该列的属性(指定字段字段名为结构的一个元素，数组元素为 `$elem$`，映射键为 `$key$`，映射值为`$value$`)。
+
+你可以递归地指定它来研究复杂的列类型。
+
+> For a view, DESCRIBE EXTENDED or FORMATTED can be used to retrieve the view's definition. Two relevant attributes are provided: both the original view definition as specified by the user, and an expanded definition used internally by Hive.
+
+对于视图，可以使用 DESCRIBE EXTENDED 或 FORMATTED 来检索视图的定义。提供了两个相关属性：用户指定的原始视图定义和 Hive 内部使用的扩展定义。
+
+> For materialized views, DESCRIBE EXTENDED or FORMATTED provides additional information on whether rewriting is enabled and whether the given materialized view is considered to be up-to-date for automatic rewriting with respect to the data in the source tables that it uses.
+
+对于物化视图，DESCRIBE EXTENDED 或 FORMATTED 提供关于是否启用重写，以及给定的物化视图是否为最新的，以便针对其使用的源表中的数据进行自动重写的额外信息。
+
+> Version information — partition & non-partition columns
+
+版本信息-分区和非分区列
+
+> In Hive 0.10.0 and earlier, no distinction is made between partition columns and non-partition columns while displaying columns for DESCRIBE TABLE. From Hive 0.12.0 onwards, they are displayed separately.
+
+在 Hive 0.10.0 和更早的版本中，当 DESCRIBE TABLE 显示列时，分区列和非分区列没有区别。从 Hive 0.12.0 开始，它们是分开显示的。
+
+> In Hive 0.13.0 and later, the configuration parameter [hive.display.partition.cols.separately](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.display.partition.cols.separately) lets you use the old behavior, if desired ([HIVE-6689](https://issues.apache.org/jira/browse/HIVE-6689)). For an example, see the test case in the [patch for HIVE-6689](https://issues.apache.org/jira/secure/attachment/12635956/HIVE-6689.2.patch).
+
+在 Hive 0.13.0 及以后版本中，配置参数 `hive.display.partition.cols.separately`。如果需要，可以使用旧的行为。例如，请查看 HIVE-6689 补丁中的测试用例。
+
+> Bug fixed in Hive 0.10.0 — database qualifiers
+
+> Database qualifiers for table names were introduced in Hive 0.7.0, but they were broken for DESCRIBE until a bug fix in Hive 0.10.0 ([HIVE-1977](https://issues.apache.org/jira/browse/HIVE-1977)).
+
+Hive 0.10.0 中修复了 bug：数据库限定符。
+
+Hive 0.7.0 中引入了表名的数据库限定符，但直到 Hive 0.10.0 中的一个 bug 修复后，它们才被破坏。
+
+> Bug fixed in Hive 0.13.0 — quoted identifiers
+
+> Prior to Hive 0.13.0 DESCRIBE did not accept backticks surrounding table identifiers, so DESCRIBE could not be used for tables with names that matched reserved keywords ([HIVE-2949](https://issues.apache.org/jira/browse/HIVE-2949) and [HIVE-6187](https://issues.apache.org/jira/browse/HIVE-6187)). As of 0.13.0, all identifiers specified within backticks are treated literally when the configuration parameter [hive.support.quoted.identifiers](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.support.quoted.identifiers) has its default value of "column" ([HIVE-6013](https://issues.apache.org/jira/browse/HIVE-6013)). The only exception is that double backticks represent a single backtick character.
+
+修复了 Hive 0.13.0 中的 bug：引号中的标识符
+
+在Hive 0.13.0 之前，DESCRIBE 不接受围绕在表标识符的反引号，所以 DESCRIBE 不能用于名称匹配保留关键字的表。从 0.13.0 开始，当配置参数 `hive.support.quoted.identifiers` 有自己的列默认值时，所有用反引号指定的标识符都按字面意义处理。。唯一的例外是双反引号表示单个反引号字符。
+
+##### 1.13.2.1、Display Column Statistics
+
+> Version information. As of Hive 0.14.0; see [HIVE-7050](https://issues.apache.org/jira/browse/HIVE-7050) and [HIVE-7051](https://issues.apache.org/jira/browse/HIVE-7051). (The FOR COLUMNS option of ANALYZE TABLE is available as of [Hive 0.10.0](https://issues.apache.org/jira/browse/HIVE-1362).)
+
+> ANALYZE TABLE table_name COMPUTE STATISTICS FOR COLUMNS will compute column statistics for all columns in the specified table (and for all partitions if the table is partitioned). To view the gathered column statistics, the following statements can be used:
+
+ANALYZE TABLE table_name COMPUTE STATISTICS FOR COLUMNS 将计算指定表中所有列的列统计信息(如果表已分区，则计算所有分区的列统计信息)。要查看收集到的列统计信息，可以使用以下语句:
+
+	DESCRIBE FORMATTED [db_name.]table_name column_name;                              -- (Note: Hive 0.14.0 and later)
+	DESCRIBE FORMATTED [db_name.]table_name column_name PARTITION (partition_spec);   -- (Note: Hive 0.14.0 to 1.x.x)
+	                                                                                  -- (see "Hive 2.0+: New Syntax" below)
+
+> See [Statistics in Hive](https://cwiki.apache.org/confluence/display/Hive/StatsDev#StatsDev-ExistingTables): Existing Tables for more information about the ANALYZE TABLE command.
+
+#### 1.13.3、Describe Partition
+
+> There are two formats for the describe partition syntax, depending on whether or not the database is specified.
+
+描述分区语法有两种格式，这取决于是否指定了数据库。
+
+> If the database is not specified, the optional column information is provided after a dot:
+
+如果没有指定数据库，在点的后面提供可选的列信息：
+
+	DESCRIBE [EXTENDED|FORMATTED] table_name[.column_name] PARTITION partition_spec;
+	                                        -- (Note: Hive 1.x.x and 0.x.x only. See "Hive 2.0+: New Syntax" below)
+
+> If the database is specified, the optional column information is provided after a space:
+
+如果指定了数据库，则在空格后提供可选的列信息:
+
+	DESCRIBE [EXTENDED|FORMATTED] [db_name.]table_name [column_name] PARTITION partition_spec;
+	                                        -- (Note: Hive 1.x.x and 0.x.x only. See "Hive 2.0+: New Syntax" below)
+
+> This statement lists metadata for a given partition. The output is similar to that of DESCRIBE table_name. Presently, the column information associated with a particular partition is not used while preparing plans. As of Hive 1.2 ([HIVE-10307](https://issues.apache.org/jira/browse/HIVE-10307)), the partition column values specified in partition_spec are type validated, converted and normalized to their column types when [hive.typecheck.on.insert](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.typecheck.on.insert) is set to true (default). These values can be number literals.
+
+该语句列出给定分区的元数据。
+
+输出与 DESCRIBE table_name 类似。目前，在准备计划时，没有使用与特定分区相关的列信息。从 Hive 1.2 开始，当 `hive.typecheck.on.insert` 设置为 true(默认)时，partition_spec 中指定的分区列值会被类型验证，转换并规范化为它们的列类型。这些值可以是数字字面量。
+
+```sql
+hive> show partitions part_table;
+OK
+d=abc
+ 
+ 
+hive> DESCRIBE extended part_table partition (d='abc');
+OK
+i                       int                                        
+d                       string                                     
+                  
+# Partition Information         
+# col_name              data_type               comment            
+                  
+d                       string                                     
+                  
+Detailed Partition Information  Partition(values:[abc], dbName:default, tableName:part_table, createTime:1459382234, lastAccessTime:0, sd:StorageDescriptor(cols:[FieldSchema(name:i, type:int, comment:null), FieldSchema(name:d, type:string, comment:null)], location:file:/tmp/warehouse/part_table/d=abc, inputFormat:org.apache.hadoop.mapred.TextInputFormat, outputFormat:org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat, compressed:false, numBuckets:-1, serdeInfo:SerDeInfo(name:null, serializationLib:org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe, parameters:{serialization.format=1}), bucketCols:[], sortCols:[], parameters:{}, skewedInfo:SkewedInfo(skewedColNames:[], skewedColValues:[], skewedColValueLocationMaps:{}), storedAsSubDirectories:false), parameters:{numFiles=1, COLUMN_STATS_ACCURATE=true, transient_lastDdlTime=1459382234, numRows=1, totalSize=2, rawDataSize=1})  
+Time taken: 0.325 seconds, Fetched: 9 row(s)
+ 
+
+hive> DESCRIBE formatted part_table partition (d='abc');
+OK
+# col_name              data_type               comment            
+                  
+i                       int                                        
+                  
+# Partition Information         
+# col_name              data_type               comment            
+                  
+d                       string                                     
+                  
+# Detailed Partition Information                
+Partition Value:        [abc]                   
+Database:               default                 
+Table:                  part_table              
+CreateTime:             Wed Mar 30 16:57:14 PDT 2016    
+LastAccessTime:         UNKNOWN                 
+Protect Mode:           None                    
+Location:               file:/tmp/warehouse/part_table/d=abc    
+Partition Parameters:           
+        COLUMN_STATS_ACCURATE   true               
+        numFiles                1                  
+        numRows                 1                  
+        rawDataSize             1                  
+        totalSize               2                  
+        transient_lastDdlTime   1459382234         
+                  
+# Storage Information           
+SerDe Library:          org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe      
+InputFormat:            org.apache.hadoop.mapred.TextInputFormat        
+OutputFormat:           org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat      
+Compressed:             No                      
+Num Buckets:            -1                      
+Bucket Columns:         []                      
+Sort Columns:           []                      
+Storage Desc Params:            
+        serialization.format    1                  
+Time taken: 0.334 seconds, Fetched: 35 row(s)
+```
+
+#### 1.13.4、Hive 2.0+: Syntax Change
+
+> Hive 2.0+: New syntax. In Hive 2.0 release onward, the describe table command has a syntax change which is backward incompatible. See [HIVE-12184](https://issues.apache.org/jira/browse/HIVE-12184) for details.
+
+	DESCRIBE [EXTENDED | FORMATTED]
+	    [db_name.]table_name [PARTITION partition_spec] [col_name ( [.field_name] | [.'$elem$'] | [.'$key$'] | [.'$value$'] )* ];
+
+> Warning: The new syntax could break current scripts.
+
+警告:新的语法可能会破坏当前的脚本。
+
+> It no longer accepts DOT separated table_name and column_name. They would have to be SPACE-separated. DB and TABLENAME are DOT-separated. column_name can still contain DOTs for complex datatypes.
+
+它不再接受点分隔的 table_name 和 column_name。
+
+它们必须用空格分隔。DB 和 TABLENAME 是点分隔的。对于复杂数据类型，column_name 仍然可以包含点。
+
+> Optional partition_spec has to appear after the table_name but prior to the optional column_name. In the previous syntax, column_name appears in between table_name and partition_spec.
+
+可选的 partition_spec 必须出现在 table_name 之后，但在可选的 column_name 之前。在前面的语法中，column_name 出现在 table_name 和 partition_spec 之间。
+
+```sql
+DESCRIBE FORMATTED default.src_table PARTITION (part_col = 100) columnA;
+DESCRIBE default.src_thrift lintString.$elem$.myint;
+```
 
 ### 1.14、Abort
 
+#### 1.14.1、Abort Transactions
+
+> Version information. As of [Hive 1.3.0 and 2.1.0](https://issues.apache.org/jira/browse/HIVE-12634) (see [Hive Transactions](https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions#HiveTransactions-BasicDesign)).
+
+	ABORT TRANSACTIONS transactionID [ transactionID ...];
+
+> ABORT TRANSACTIONS cleans up the specified transaction IDs from the Hive metastore so that users do not need to interact with the metastore directly in order to remove dangling or failed transactions. ABORT TRANSACTIONS is added in Hive 1.3.0 and 2.1.0 ([HIVE-12634](https://issues.apache.org/jira/browse/HIVE-12634)).
+
+ABORT TRANSACTIONS 清除 Hive metastore 中指定的事务 IDs，这样用户就不需要通过直接与 metastore 交互，来移除悬垂或失败的事务。ABORT TRANSACTIONS 在 Hive 1.3.0 和 2.1.0 中添加。
+
+```sql
+ABORT TRANSACTIONS 0000007 0000008 0000010 0000015;
+```
+
+> This command can be used together with [SHOW TRANSACTIONS](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-ShowTransactions). The latter can help figure out the candidate transaction IDs to be cleaned up.
+
+该命令可以与 SHOW TRANSACTIONS 一起使用。后者可以帮助确定要清除的候选事务 IDs。
+
 ## 2、Scheduled queries
 
+> Documentation is available on the [Scheduled Queries](https://cwiki.apache.org/confluence/display/Hive/Scheduled+Queries) page.
+
 ## 3、HCatalog and WebHCat DDL
+
+> For information about DDL in HCatalog and WebHCat, see:
+
+- [HCatalog DDL](https://cwiki.apache.org/confluence/display/Hive/HCatalog+CLI#HCatalogCLI-HCatalogDDL) in the [HCatalog manual](https://cwiki.apache.org/confluence/display/Hive/HCatalog)
+- [WebHCat DDL Resources](https://cwiki.apache.org/confluence/display/Hive/WebHCat+Reference+AllDDL) in the [WebHCat manual](https://cwiki.apache.org/confluence/display/Hive/WebHCat)
