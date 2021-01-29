@@ -333,7 +333,7 @@ USE 为所有后续 HiveQL 语句设置当前数据库。
 
 	- 在 Hive 0.12 及更早版本，表名和列名仅允许字母数字和下划线字符。
 
-	- 在 Hive 0.13 及后面版本，列名可以包含任意的 Unicode 字符，但是点号和冒号会在查询时产生错误，所以在 Hive 1.2.0 中，它们被禁止了。任意在反引号中指定的列名作为字面含义对待。在反引号字符串中，使用双反引号来表示一个反引号字符。反引号还允许对表和列标识符使用保留关键字。
+	- 在 Hive 0.13 及后面版本，列名可以包含任意的 Unicode 字符，但是点号和冒号会在查询时产生错误，所以在 Hive 1.2.0 中，它们被禁止了。任意在反引号中指定的列名作为字面含义对待。**在反引号字符串中，使用双反引号来表示一个反引号字符。反引号还允许对表和列标识符使用保留关键字**。
 
 	- 要恢复到 0.13.0 之前的行为，并将列名限制为字母数字和下划线字符，设置配置属性`hive.support.quoted.identifiers`为 none。在此配置中，反引号包围的名字被解释为正则表达式。有关详细信息，请参见 Supporting Quoted Identifiers in Column Names。
 
@@ -353,7 +353,7 @@ USE 为所有后续 HiveQL 语句设置当前数据库。
 
 > The TBLPROPERTIES clause allows you to tag the table definition with your own metadata key/value pairs. Some predefined table properties also exist, such as last_modified_user and last_modified_time which are automatically added and managed by Hive. Other predefined table properties include:
 
-- TBLPROPERTIES 子句允许你使用自己的元数据键/值对标记表定义。此外，还存在一些预定义的表属性，如 last_modified_user 和 last_modified_time，这些属性是由 Hive 自动添加和管理的。其他预定义的表属性包括:
+- TBLPROPERTIES 子句允许你使用自己的元数据键/值对标记表定义。此外，**还存在一些预定义的表属性，如 last_modified_user 和 last_modified_time**，这些属性是由 Hive 自动添加和管理的。其他预定义的表属性包括:
 
 	- TBLPROPERTIES ("comment"="table_comment")
 
@@ -395,7 +395,7 @@ USE 为所有后续 HiveQL 语句设置当前数据库。
 
 > By default Hive creates managed tables, where files, metadata and statistics are managed by internal Hive processes. For details on the differences between managed and external table see [Managed vs. External Tables](https://cwiki.apache.org/confluence/display/Hive/Managed+vs.+External+Tables).
 
-默认情况下，Hive 创建受管表，它的文件、元数据和统计信息都由内部 Hive 进程管理。受管表和外部表的区别见 Managed vs. External Tables。
+**默认情况下，Hive 创建受管表，它的文件、元数据和统计信息都由内部 Hive 进程管理**。受管表和外部表的区别见 Managed vs. External Tables。
 
 ##### 1.4.1.2、Storage Formats
 
@@ -423,7 +423,7 @@ INPUTFORMAT and OUTPUTFORMAT  |	in the file_format to specify the name of a corr
 > You can create tables with a custom SerDe or using a native SerDe. A native SerDe is used if ROW FORMAT is not specified or ROW FORMAT DELIMITED is specified. 
 Use the SERDE clause to create a table with a custom SerDe. For more information on SerDes see:
 
-可以使用自定义 SerDe 或使用原生 SerDe 创建表。如果未指定 ROW FORMAT 或指定了 ROW FORMAT DELIMITED，则使用原生 SerDe。
+可以使用自定义 SerDe 或使用原生 SerDe 创建表。**如果未指定 ROW FORMAT 或指定了 ROW FORMAT DELIMITED，则使用原生 SerDe**。
 
 SERDE 子句使用自定义 SERDE 创建表。有关 SerDes 的更多信息，请参见:
 
@@ -563,7 +563,7 @@ CREATE EXTERNAL TABLE page_view(viewTime INT, userid BIGINT,
 
 可以在 `create-table-as-select` (CTAS)语句中，创建表，并使用一个查询结果填充。
 
-CTAS 创建的表是原子的，这意味着在填充所有的查询结果之前，其他用户不会看到该表。因此，其他用户要么看到包含完整查询结果的表，要么根本看不到该表。
+**CTAS 创建的表是原子的，这意味着在填充所有的查询结果之前，其他用户不会看到该表**。因此，其他用户要么看到包含完整查询结果的表，要么根本看不到该表。
 
 > There are two parts in CTAS, the SELECT part can be any [SELECT statement](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Select) supported by HiveQL. The CREATE part of the CTAS takes the resulting schema from the SELECT part and creates the target table with other table properties such as the SerDe and storage format.
 
@@ -643,7 +643,7 @@ CREATE TABLE page_view(viewTime INT, userid BIGINT,
 
 > In the example above, the page_view table is bucketed (clustered by) userid and within each bucket the data is sorted in increasing order of viewTime. Such an organization allows the user to do efficient sampling on the clustered column - in this case userid. The sorting property allows internal operators to take advantage of the better-known data structure while evaluating queries, also increasing efficiency. MAP KEYS and COLLECTION ITEMS keywords can be used if any of the columns are lists or maps.
 
-在上面的示例中，page_view 表使用 `(clustered by) userid` 分桶，在每个桶中，数据按 viewTime 的递增顺序排序。
+在上面的示例中，**page_view 表使用 `(clustered by) userid` 分桶，在每个桶中，数据按 viewTime 的递增顺序排序**。
 
 这样的组织允许用户对聚集列(在本例中为userid)进行有效的抽样。排序属性允许内部操作符在计算查询时利用已知的数据结构，这也提高了效率。
 
@@ -667,9 +667,9 @@ CLUSTERED BY 和 SORTED BY 创建命令并不影响数据插入表的方式，�
 
 > This feature can be used to improve performance for tables where one or more columns have [skewed](https://cwiki.apache.org/confluence/display/Hive/Skewed+Join+Optimization) values. By specifying the values that appear very often (heavy skew) Hive will split those out into separate files (or directories in case of [list bucketing](https://cwiki.apache.org/confluence/display/Hive/ListBucketing)) automatically and take this fact into account during queries so that it can skip or include the whole file (or directory in case of [list bucketing](https://cwiki.apache.org/confluence/display/Hive/ListBucketing)) if possible.
 
-对于一个或多个列有倾斜值的表，可以使用此特性提高性能。
+**对于一个或多个列有倾斜值的表，可以使用此特性提高性能**。
 
-通过指定的值经常出现(重斜)，Hive 自动将这些分割成单独的文件(或list bucketing中的目录)，在查询期间，使用这一事实，以便它可以跳过或者包含整个文件(或目录的列表用桶装)，如果可能的话。
+**通过指定经常出现(重斜)的值，Hive 自动将这些分割成单独的文件(或list bucketing中的目录)**，在查询期间，使用这一事实，以便它可以跳过或者包含整个文件(或目录的列表用桶装)，如果可能的话。
 
 > This can be specified on a per-table level during table creation.
 
@@ -701,7 +701,7 @@ CREATE TABLE list_bucket_multiple (col1 STRING, col2 int, col3 STRING)
 
 > A table that has been created as a temporary table will only be visible to the current session. Data will be stored in the user's scratch directory, and deleted at the end of the session.
 
-已创建为临时表的表只对当前会话可见。数据将存储在用户的 scratch 目录中，并在会话结束时删除。
+已创建为**临时表的表只对当前会话可见**。数据将存储在用户的 scratch 目录中，并在会话结束时删除。
 
 > If a temporary table is created with a database/table name of a permanent table which already exists in the database, then within that session any references to that table will resolve to the temporary table, rather than to the permanent table. The user will not be able to access the original table within that session without either dropping the temporary table, or renaming it to a non-conflicting name.
 
@@ -809,7 +809,7 @@ DROP TABLE 删除该表的元数据和数据。如果配置了 Trash(并且没�
 
 > If PURGE is specified, the table data does not go to the .Trash/Current directory and so cannot be retrieved in the event of a mistaken DROP. The purge option can also be specified with the table property auto.purge (see [TBLPROPERTIES](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-listTableProperties) above).
 
-如果指定了 PURGE，则表数据不会转到 `.Trash/Current` 目录，因此在错误删除时无法检索。还可以使用表属性 `auto.purge` 指定清除选项。
+**如果指定了 PURGE，则表数据不会转到 `.Trash/Current` 目录**，因此在错误删除时无法检索。还可以使用表属性 `auto.purge` 指定清除选项。
 
 > In Hive 0.7.0 or later, DROP returns an error if the table doesn't exist, unless IF EXISTS is specified or the configuration variable [hive.exec.drop.ignorenonexistent](https://cwiki.apache.org/confluence/display/Hive/Configuration+Properties#ConfigurationProperties-hive.exec.drop.ignorenonexistent) is set to true.
 
@@ -912,7 +912,7 @@ For more information, see the [TBLPROPERTIES](https://cwiki.apache.org/confluenc
 
 > The SerDe properties are passed to the table's SerDe when it is being initialized by Hive to serialize and deserialize data. So users can store any information required for their custom SerDe here. Refer to the [SerDe documentation](https://cwiki.apache.org/confluence/display/Hive/SerDe) and [Hive SerDe](https://cwiki.apache.org/confluence/display/Hive/DeveloperGuide#DeveloperGuide-HiveSerDe) in the Developer Guide for more information, and see [LanguageManual DDL#Row Format, Storage Format, and SerDe](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=82706445#LanguageManualDDL-RowFormat,StorageFormat,andSerDe) above for details about setting a table's SerDe and SERDEPROPERTIES in a CREATE TABLE statement.
 
-当表被 Hive 初始化以序列化和反序列化数据时，SerDe 属性被传递给表的 SerDe。
+当表被 Hive 初始化，以序列化和反序列化数据时，SerDe 属性被传递给表的 SerDe。
 
 因此，用户可以在这里存储自定义 SerDe 所需的任何信息。更多信息请参考 SerDe 文档和 Developer Guide 中的 Hive SerDe。关于在 CREATE TABLE 语句中设置表的 SerDe 和 SERDEPROPERTIES 的详细信息参见 LanguageManual DDL#Row Format, Storage Format, and SerDe。
 
