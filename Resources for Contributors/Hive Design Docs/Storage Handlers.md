@@ -144,12 +144,7 @@ hive> insert into table hbase_table_1 values(1,"zhangsan");
 -- hive下查看
 hive> select * from hbase_table_1;
 OK
-2021-02-04 14:17:31,402 INFO  [22f69242-1d69-4d3a-834e-a3d78f86d5d8 main] zookeeper.RecoverableZooKeeper: Process identifier=hconnection-0x341141ab connecting to ZooKeeper ensemble=localhost:2181
-2021-02-04 14:17:31,456 INFO  [22f69242-1d69-4d3a-834e-a3d78f86d5d8 main] mapreduce.RegionSizeCalculator: Calculating region sizes for table "hbase_table_0".
-2021-02-04 14:17:31,829 INFO  [22f69242-1d69-4d3a-834e-a3d78f86d5d8 main] client.ConnectionImplementation: Closing zookeeper sessionid=0x1776baa59ba000b
-2021-02-04 14:17:31,863 INFO  [22f69242-1d69-4d3a-834e-a3d78f86d5d8 main] zookeeper.RecoverableZooKeeper: Process identifier=hconnection-0x64b20d9c connecting to ZooKeeper ensemble=localhost:2181
-2021-02-04 14:17:31,873 INFO  [22f69242-1d69-4d3a-834e-a3d78f86d5d8 main] mapreduce.TableInputFormatBase: Input split length: 0 bytes.
-2021-02-04 14:17:32,006 INFO  [22f69242-1d69-4d3a-834e-a3d78f86d5d8 main] client.ConnectionImplementation: Closing zookeeper sessionid=0x1776baa59ba000c
+....
 1       zhangsan
 
 -- hbase下查看
@@ -165,7 +160,7 @@ Took 0.0794 seconds
 hbase(main):006:0> scan "hbase_table_0"
 ROW                                COLUMN+CELL                                                                                      
  1                                 column=cf:string, timestamp=1612419399214, value=zhangsan                                        
- 2   
+ 2  ..... 
 
 -- hive下查看
 hive> select * from hbase_table_1;
@@ -174,8 +169,6 @@ OK
 1       zhangsan
 2       lisi                   
 ```
-
-
 
 ------------------------------------------------
 
