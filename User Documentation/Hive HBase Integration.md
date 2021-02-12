@@ -670,7 +670,7 @@ Eclipse 启动模板仍有待定义。
 > For information on how to bulk load data from Hive into HBase, see [HBaseBulkLoad](https://cwiki.apache.org/confluence/display/Hive/HBaseBulkLoad).
 > For another project which adds SQL-like query language support on top of HBase, see [HBQL](http://www.hbql.com/) (unrelated to Hive).
 
-HBaseBulkLoad 原文翻译：[]()
+HBaseBulkLoad 原文翻译：[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/HBaseBulkLoad.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/HBaseBulkLoad.md)
 
 ## 12、Acknowledgements
 
