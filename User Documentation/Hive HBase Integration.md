@@ -631,7 +631,7 @@ Hive/HBase 集成在很多领域都需要更多的爱:
 > user defined routines for lookups and data loads via HBase client API (HIVE-758 and HIVE-791)
 > logging is very noisy, with a lot of spurious exceptions; investigate these and either fix their cause or squelch them
 
-FilterPushdownDev 原文翻译见：[]()
+FilterPushdownDev 原文翻译见：[https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/FilterPushdownDev.md](https://github.com/ZGG2016/hive-website/blob/master/User%20Documentation/FilterPushdownDev.md)
 
 ## 9、Build
 
