@@ -631,6 +631,8 @@ Hive/HBase 集成在很多领域都需要更多的爱:
 > user defined routines for lookups and data loads via HBase client API (HIVE-758 and HIVE-791)
 > logging is very noisy, with a lot of spurious exceptions; investigate these and either fix their cause or squelch them
 
+FilterPushdownDev 原文翻译见：[]()
+
 ## 9、Build
 
 存储处理程序的代码位于 hive/trunk/hbase-handler 下。

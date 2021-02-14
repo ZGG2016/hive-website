@@ -539,4 +539,252 @@ STORED AS SEQUENCEFILE 表示该数据以二进制格式(使用hadoop SequenceFi
 
 ### 2.2、Loading Data
 
+> There are multiple ways to load data into Hive tables. The user can create an external table that points to a specified location within [HDFS](http://hadoop.apache.org/common/docs/current/hdfs_design.html). In this particular usage, the user can copy a file into the specified location using the HDFS put or copy commands and create a table pointing to this location with all the relevant row format information. Once this is done, the user can transform the data and insert them into any other Hive table. For example, if the file /tmp/pv_2008-06-08.txt contains comma separated page views served on 2008-06-08, and this needs to be loaded into the page_view table in the appropriate partition, the following sequence of commands can achieve this:
+
+将数据加载到 Hive 表中有多种方式。
+
+用户可以创建一个外部表，该表指向 HDFS 中的指定位置。在这种特殊的用法中，用户可以使用 HDFS 的 put 或 copy 命令将文件复制到指定的位置，并创建一个指向该位置的表，其中包含所有相关的行格式信息。
+
+一旦完成，用户就可以转换数据，并将它们插入到任何其他 Hive 表中。例如，如果文件 `/tmp/pv_2008-06-08.txt` 包含了 2008-06-08 上的以逗号分隔的页面视图，并且需要将其加载到 page_view 表的相应分区中，下面的命令序列可以实现这一点:
+
+```sql
+CREATE EXTERNAL TABLE page_view_stg(viewTime INT, userid BIGINT,
+                page_url STRING, referrer_url STRING,
+                ip STRING COMMENT 'IP Address of the User',
+                country STRING COMMENT 'country of origination')
+COMMENT 'This is the staging page view table'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '44' LINES TERMINATED BY '12'
+STORED AS TEXTFILE
+LOCATION '/user/data/staging/page_view';
+ 
+hadoop dfs -put /tmp/pv_2008-06-08.txt /user/data/staging/page_view
+ 
+FROM page_view_stg pvs
+INSERT OVERWRITE TABLE page_view PARTITION(dt='2008-06-08', country='US')
+SELECT pvs.viewTime, pvs.userid, pvs.page_url, pvs.referrer_url, null, null, pvs.ip
+WHERE pvs.country = 'US';
+```
+
+> This code results in an error due to LINES TERMINATED BY limitation
+
+由于 LINES TERMINATED BY 限制，这个代码会导致错误
+
+	FAILED: SemanticException 6:67 LINES TERMINATED BY only supports newline '\n' right now. Error encountered near token ''12''
+
+> See  `[HIVE-5999](https://issues.apache.org/jira/browse/HIVE-5999) - Allow other characters for LINES TERMINATED BY OPEN`  `[HIVE-11996](https://issues.apache.org/jira/browse/HIVE-11996) - Row Delimiter other than '\n' throws error in Hive. OPEN`
+ 
+> In the example above, nulls are inserted for the array and map types in the destination tables but potentially these can also come from the external table if the proper row formats are specified.
+
+在上面的示例中，将为目标表中的 array 和 map 类型插入 nulls，但如果指定了适当的行格式，这些 nulls 也可能来自外部表。
+
+> This method is useful if there is already legacy data in HDFS on which the user wants to put some metadata so that the data can be queried and manipulated using Hive.
+
+如果 HDFS 中已经有一些遗留数据，用户想要在这些数据上放一些元数据，这样就可以使用 Hive 来查询和操作这些数据，那么这种方法非常有用。
+
+> Additionally, the system also supports syntax that can load the data from a file in the local files system directly into a Hive table where the input data format is the same as the table format. If /tmp/pv_2008-06-08_us.txt already contains the data for US, then we do not need any additional filtering as shown in the previous example. The load in this case can be done using the following syntax:
+
+此外，系统还支持将本地文件系统中文件的数据直接加载到 Hive 表中，并且输入的数据格式与表格式相同。
+
+如果 `/tmp/pv_2008-06-08_us.txt` 已经包含了 US 的数据，那么我们不需要像前面的例子中所示的任何额外的过滤。在这种情况下，可以使用以下语法进行加载:
+
+	LOAD DATA LOCAL INPATH /tmp/pv_2008-06-08_us.txt INTO TABLE page_view PARTITION(date='2008-06-08', country='US')
+
+> The path argument can take a directory (in which case all the files in the directory are loaded), a single file name, or a wildcard (in which case all the matching files are uploaded). If the argument is a directory, it cannot contain subdirectories. Similarly, the wildcard must match file names only.
+
+path 参数可以接受一个目录(在这种情况下，该目录中的所有文件都被加载)、一个单个文件名或一个通配符(在这种情况下，所有匹配的文件都被上传)。
+
+如果参数是目录，则不能包含子目录。类似地，通配符必须只匹配文件名。
+
+> In the case that the input file /tmp/pv_2008-06-08_us.txt is very large, the user may decide to do a parallel load of the data (using tools that are external to Hive). Once the file is in HDFS - the following syntax can be used to load the data into a Hive table:
+
+如果输入文件 `/tmp/pv_2008-06-08_us.txt` 非常大，用户可能会决定并行加载数据(使用 Hive 外部的工具)。一旦文件在 HDFS 中，可以使用以下语法将数据加载到 Hive 表中：
+
+	LOAD DATA INPATH '/user/data/pv_2008-06-08_us.txt' INTO TABLE page_view PARTITION(date='2008-06-08', country='US')
+
+> It is assumed that the array and map fields in the input.txt files are null fields for these examples.
+
+对于这些例子，假设 input.txt 文件中的 array 和 map 字段是空字段。
+
+> See [Hive Data Manipulation Language](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML) for more information about loading data into Hive tables, and see [External Tables](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL#LanguageManualDDL-ExternalTables) for another example of creating an external table.
+
 ### 2.3、Querying and Inserting Data
+
+> The Hive query operations are documented in [Select](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Select), and the insert operations are documented in [Inserting data into Hive Tables from queries](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-InsertingdataintoHiveTablesfromqueries) and [Writing data into the filesystem from queries](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-Writingdataintothefilesystemfromqueries).
+
+Hive 查询操作记录在 Select 中，insert 操作记录在 Inserting data into Hive Tables from queries 和 Writing data into the filesystem from queries 中。
+
+#### 2.3.1、Simple Query
+
+> For all the active users, one can use the query of the following form:
+
+对于所有活跃用户，可以使用下面形式的查询：
+
+```sql
+INSERT OVERWRITE TABLE user_active
+SELECT user.*
+FROM user
+WHERE user.active = 1;
+```
+
+> Note that unlike SQL, we always insert the results into a table. We will illustrate later how the user can inspect these results and even dump them to a local file. You can also run the following query in [Beeline](https://cwiki.apache.org/confluence/display/Hive/HiveServer2+Clients#HiveServer2Clients-Beeline%E2%80%93NewCommandLineShell) or the Hive [CLI](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Cli):
+
+注意，与 SQL 不同，我们总是将结果插入表中。我们稍后将演示用户如何检查这些结果，甚至将它们转储到本地文件。
+
+你也可以在 Beeline 或 Hive 命令行中执行如下查询:
+
+```sql
+SELECT user.*
+FROM user
+WHERE user.active = 1;
+```
+
+> This will be internally rewritten to some temporary file and displayed to the Hive client side.
+
+这将在内部被重写到一些临时文件，并显示到 Hive 客户端。
+
+#### 2.3.2、Partition Based Query
+
+> What partitions to use in a query is determined automatically by the system on the basis of where clause conditions on partition columns. For example, in order to get all the page_views in the month of 03/2008 referred from domain xyz.com, one could write the following query:
+
+在查询中，使用什么分区由系统根据分区列上的 where 子句条件自动决定。
+
+例如，为了从域名 xyz.com 获得所有在 2008 年 3 月的 page_views，可以写以下查询：
+
+```sql
+INSERT OVERWRITE TABLE xyz_com_page_views
+SELECT page_views.*
+FROM page_views
+WHERE page_views.date >= '2008-03-01' AND page_views.date <= '2008-03-31' AND
+      page_views.referrer_url like '%xyz.com';
+```
+
+> Note that page_views.date is used here because the table (above) was defined with PARTITIONED BY(date DATETIME, country STRING) ; if you name your partition something different, don't expect .date to do what you think!
+
+注意，这里使用 page_views.date 是因为上面的表是用 `PARTITIONED BY(date DATETIME, country STRING)` 定义的；如果你给你的分区起了不同的名字，别指望 `.date` 会像你想的那样!
+
+#### 2.3.3、Joins
+
+> In order to get a demographic breakdown (by gender) of page_view of 2008-03-03 one would need to join the page_view table and the user table on the userid column. This can be accomplished with a join as shown in the following query:
+
+为了获得 2008-03-03 的 page_view 的人口统计分类(按性别)，需要在 userid 列上连接 page_view 表和 user 表。这可以通过 join 来实现，如下面的查询所示:
+
+```sql
+INSERT OVERWRITE TABLE pv_users
+SELECT pv.*, u.gender, u.age
+FROM user u JOIN page_view pv ON (pv.userid = u.id)
+WHERE pv.date = '2008-03-03';
+```
+
+> In order to do outer joins the user can qualify the join with LEFT OUTER, RIGHT OUTER or FULL OUTER keywords in order to indicate the kind of outer join (left preserved, right preserved or both sides preserved). For example, in order to do a full outer join in the query above, the corresponding syntax would look like the following query:
+
+为了进行外部连接，用户可以使用 LEFT OUTER、RIGHT OUTER 或 FULL OUTER 关键字来限定连接，以表明外部连接的类型(左保留、右保留或两边保留)。
+
+例如，为了在上面的查询中执行 full outer join，相应的语法看起来像下面的查询:
+
+```sql
+INSERT OVERWRITE TABLE pv_users
+SELECT pv.*, u.gender, u.age
+FROM user u FULL OUTER JOIN page_view pv ON (pv.userid = u.id)
+WHERE pv.date = '2008-03-03';
+```
+
+> In order check the existence of a key in another table, the user can use LEFT SEMI JOIN as illustrated by the following example.
+
+为了检查另一个表中是否存在一个键，用户可以使用 LEFT SEMI JOIN，如下面的例子所示。
+
+```sql
+INSERT OVERWRITE TABLE pv_users
+SELECT u.*
+FROM user u LEFT SEMI JOIN page_view pv ON (pv.userid = u.id)
+WHERE pv.date = '2008-03-03';
+```
+
+> In order to join more than one tables, the user can use the following syntax:
+
+为了连接多个表，用户可以使用以下语法：
+
+```sql
+INSERT OVERWRITE TABLE pv_friends
+SELECT pv.*, u.gender, u.age, f.friends
+FROM page_view pv JOIN user u ON (pv.userid = u.id) JOIN friend_list f ON (u.id = f.uid)
+WHERE pv.date = '2008-03-03';
+```
+
+> Note that Hive only supports [equi-joins](http://en.wikipedia.org/wiki/Join_(SQL)#Equi-join). Also it is best to put the largest table on the rightmost side of the join to get the best performance.
+
+Hive 只支持 equi-joins。另外，最好将最大的表放在连接的最右边，以获得最佳性能。
+
+#### 2.3.4、Aggregations
+
+> In order to count the number of distinct users by gender one could write the following query:
+
+为了按性别计算不同用户的数量，可以编写以下查询：
+
+```sql
+INSERT OVERWRITE TABLE pv_gender_sum
+SELECT pv_users.gender, count (DISTINCT pv_users.userid)
+FROM pv_users
+GROUP BY pv_users.gender;
+```
+
+> Multiple aggregations can be done at the same time, however, no two aggregations can have different DISTINCT columns .e.g while the following is possible
+
+多个聚合可以同时进行，但是，两个聚合不能有不同的列。例如，以下是可能的：
+
+```sql
+INSERT OVERWRITE TABLE pv_gender_agg
+SELECT pv_users.gender, count(DISTINCT pv_users.userid), count(*), sum(DISTINCT pv_users.userid)
+FROM pv_users
+GROUP BY pv_users.gender;
+```
+
+> however, the following query is not allowed
+
+但是，下面的查询是不允许的
+
+```sql
+INSERT OVERWRITE TABLE pv_gender_agg
+SELECT pv_users.gender, count(DISTINCT pv_users.userid), count(DISTINCT pv_users.ip)
+FROM pv_users
+GROUP BY pv_users.gender;
+```
+
+#### 2.3.5、Multi Table/File Inserts
+
+> The output of the aggregations or simple selects can be further sent into multiple tables or even to hadoop dfs files (which can then be manipulated using hdfs utilities). For example, if along with the gender breakdown, one needed to find the breakdown of unique page views by age, one could accomplish that with the following query:
+
+聚合或简单选择的输出可以进一步发送到多个表中，甚至发送到 hadoop dfs 文件中(然后可以使用 hdfs 实用程序操作这些文件)。
+
+例如，如果在性别分类的同时，需要找到按年龄划分的唯一页面浏览量，可以通过以下查询来实现：
+
+```sql
+FROM pv_users
+INSERT OVERWRITE TABLE pv_gender_sum
+    SELECT pv_users.gender, count_distinct(pv_users.userid)
+    GROUP BY pv_users.gender
+ 
+INSERT OVERWRITE DIRECTORY '/user/data/tmp/pv_age_sum'
+    SELECT pv_users.age, count_distinct(pv_users.userid)
+    GROUP BY pv_users.age;
+```
+
+> The first insert clause sends the results of the first group by to a Hive table while the second one sends the results to a hadoop dfs files.
+
+第一个 insert 子句将第一个 group by 的结果发送到 Hive 表中，而第二个 insert 子句将结果发送到 hadoop dfs 文件中。
+
+#### 2.3.6、Dynamic-Partition Insert
+
+#### 2.3.7、Inserting into Local Files
+
+#### 2.3.8、Sampling
+
+#### 2.3.9、Union All
+
+#### 2.3.10、Array Operations
+
+#### 2.3.11、Map (Associative Arrays) Operations
+
+#### 2.3.12、Custom Map/Reduce Scripts
+
+#### 2.3.1、Co-Groups
+
