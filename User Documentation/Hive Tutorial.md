@@ -774,17 +774,462 @@ INSERT OVERWRITE DIRECTORY '/user/data/tmp/pv_age_sum'
 
 #### 2.3.6、Dynamic-Partition Insert
 
+> In the previous examples, the user has to know which partition to insert into and only one partition can be inserted in one insert statement. If you want to load into multiple partitions, you have to use multi-insert statement as illustrated below.
+
+在前面的例子中，用户必须知道要插入哪个分区，并且在一条 insert 语句中只能插入一个分区。
+
+如果想要加载到多个分区，必须使用多条 insert 语句，如下所示。
+
+```sql
+FROM page_view_stg pvs
+INSERT OVERWRITE TABLE page_view PARTITION(dt='2008-06-08', country='US')
+       SELECT pvs.viewTime, pvs.userid, pvs.page_url, pvs.referrer_url, null, null, pvs.ip WHERE pvs.country = 'US'
+INSERT OVERWRITE TABLE page_view PARTITION(dt='2008-06-08', country='CA')
+       SELECT pvs.viewTime, pvs.userid, pvs.page_url, pvs.referrer_url, null, null, pvs.ip WHERE pvs.country = 'CA'
+INSERT OVERWRITE TABLE page_view PARTITION(dt='2008-06-08', country='UK')
+       SELECT pvs.viewTime, pvs.userid, pvs.page_url, pvs.referrer_url, null, null, pvs.ip WHERE pvs.country = 'UK';
+```
+
+> In order to load data into all country partitions in a particular day, you have to add an insert statement for each country in the input data. This is very inconvenient since you have to have the priori knowledge of the list of countries exist in the input data and create the partitions beforehand. If the list changed for another day, you have to modify your insert DML as well as the partition creation DDLs. It is also inefficient since each insert statement may be turned into a MapReduce Job.
+
+为了将某一天的数据加载到所有 country 分区中，必须在输入数据中为每个国家添加 insert 一条语句。
+
+这非常不方便，因为你必须事先知道输入数据中存在的国家列表，并预先创建分区。
+
+如果列表某天更改了，则必须修改 insert DML 和创建分区 DML。这也是低效的，因为每个 insert 语句都可能变成 MapReduce Job。
+
+> [Dynamic-partition insert](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-DynamicPartitionInserts) (or multi-partition insert) is designed to solve this problem by dynamically determining which partitions should be created and populated while scanning the input table. This is a newly added feature that is only available from version 0.6.0. In the dynamic partition insert, the input column values are evaluated to determine which partition this row should be inserted into. If that partition has not been created, it will create that partition automatically. Using this feature you need only one insert statement to create and populate all necessary partitions. In addition, since there is only one insert statement, there is only one corresponding MapReduce job. This significantly improves performance and reduce the Hadoop cluster workload comparing to the multiple insert case.
+
+动态分区插入(或多分区插入)是为了解决这个问题而设计的，它在扫描输入表时动态地确定应该创建和填充哪些分区。
+
+这是一个新添加的特性，仅在 0.6.0 版本中可用。
+
+在动态分区插入中，将计算输入列的值，以确定应该将该行插入哪个分区。如果还没有创建该分区，它将自动创建该分区。
+
+使用这个特性，你只需要一条 insert 语句就可以创建和填充所有必要的分区。另外，由于只有一条 insert 语句，所以对应的 MapReduce job 也只有一个。
+
+与多次插入相比，这显著提高了性能并减少了 Hadoop 集群的工作负载。
+
+> Below is an example of loading data to all country partitions using one insert statement:
+
+下面是一个使用 insert 语句将数据加载到所有 country 分区的例子:
+
+```sql
+FROM page_view_stg pvs
+INSERT OVERWRITE TABLE page_view PARTITION(dt='2008-06-08', country)
+       SELECT pvs.viewTime, pvs.userid, pvs.page_url, pvs.referrer_url, null, null, pvs.ip, pvs.country
+```
+
+> There are several syntactic differences from the multi-insert statement:
+
+与多条 insert 语句有几个语法上的区别:
+
+> country appears in the PARTITION specification, but with no value associated. In this case, country is a dynamic partition column. On the other hand, ds has a value associated with it, which means it is a static partition column. If a column is dynamic partition column, its value will be coming from the input column. Currently we only allow dynamic partition columns to be the last column(s) in the partition clause because the partition column order indicates its hierarchical order (meaning dt is the root partition, and country is the child partition). You cannot specify a partition clause with (dt, country='US') because that means you need to update all partitions with any date and its country sub-partition is 'US'.
+
+- country 出现在 PARTITION 规范中，但没有关联的值。
+
+在本例中，country 是一个动态分区列。另一方面，ds 有一个与之相关联的值，这意味着它是一个静态分区列。
+
+如果一个列是动态分区列，那么它的值将来自输入列。
+
+目前，我们只允许动态分区列是 partition 子句中的最后一列，因为分区列的顺序表明了它的层次顺序(意味着 dt 是根分区，而 country 是子分区)。
+
+你不能用 (dt, country='US') 指定分区子句，因为这意味着你需要用任一日期更新所有分区，而它的 country 子分区是 'US'。
+
+> An additional pvs.country column is added in the select statement. This is the corresponding input column for the dynamic partition column. Note that you do not need to add an input column for the static partition column because its value is already known in the PARTITION clause. Note that the dynamic partition values are selected by ordering, not name, and taken as the last columns from the select clause.
+
+- 在 select 语句中添加一个额外的 pvs.country 列。
+
+这是动态分区列的相应输入列。
+
+注意，你不需要为静态 partition 列添加输入列，因为它的值在 PARTITION 子句中已知。
+
+注意，动态分区值是按照顺序选择的，而不是名称，并作为 select 子句的最后一列。
+
+> Semantics of the dynamic partition insert statement:
+
+动态分区插入语句的语义:
+
+> When there are already non-empty partitions exists for the dynamic partition columns, (for example, country='CA' exists under some ds root partition), it will be overwritten if the dynamic partition insert saw the same value (say 'CA') in the input data. This is in line with the 'insert overwrite' semantics. However, if the partition value 'CA' does not appear in the input data, the existing partition will not be overwritten.
+
+- 当动态分区列已经存在非空的分区时(例如，country='CA' 存在于某些 ds 根分区下)，如果动态分区插入在输入数据中遇到相同的值(比如'CA')，那么它将被覆盖。这符合 'insert overwrite' 语义。但是，如果分区值 'CA' 没有出现在输入数据中，则不会覆盖现有分区。
+
+> Since a Hive partition corresponds to a directory in HDFS, the partition value has to conform to the HDFS path format (URI in Java). Any character having a special meaning in URI (for example, '%', ':', '/', '#') will be escaped with '%' followed by 2 bytes of its ASCII value.
+
+- 一个 Hive 分区对应 HDFS 中的一个目录，分区值必须符合 HDFS 的路径格式(Java为URI)。任何在 URI 中有特殊含义的字符(例如'%'，':'，'/'，'#')将用 '%' 后跟它的 ASCII 值的 2 个字节进行转义。
+
+> If the input column is a type different than STRING, its value will be first converted to STRING to be used to construct the HDFS path.
+
+- 如果输入列不是 STRING 类型，则首先将其值转换为 STRING，用于构建 HDFS 路径。
+
+> If the input column value is NULL or empty string, the row will be put into a special partition, whose name is controlled by the hive parameter hive.exec.default.partition.name. The default value is HIVE_DEFAULT_PARTITION{}. Basically this partition will contain all "bad" rows whose value are not valid partition names. The caveat of this approach is that the bad value will be lost and is replaced by HIVE_DEFAULT_PARTITION{} if you select them Hive. JIRA HIVE-1309 is a solution to let user specify "bad file" to retain the input partition column values as well.
+
+- 如果输入的列值为 NULL 或空字符串，行将被放入一个特殊的分区，分区的名称由 `hive.exec.default.partition.name` 参数控制。默认值为 `HIVE_DEFAULT_PARTITION{}`。基本上，这个分区将包含“坏”行，行的值不是有效的分区名。注意，如果选择它们，“坏”值将丢失，并由 `HIVE_DEFAULT_PARTITION{}` 替换。JIRA HIVE-1309 是一个让用户指定 “坏文件” 来保留输入分区列值的解决方案。
+
+> Dynamic partition insert could potentially be a resource hog in that it could generate a large number of partitions in a short time. To get yourself buckled, we define three parameters:
+
+- 动态分区插入可能会占用大量资源，因为它可能会在很短的时间内生成大量分区。我们定义了三个参数：
+
+	- hive.exec.max.dynamic.partitions.pernode（默认值是100）：是每个 mapper 或 reducer 可以创建的最大动态分区。如果一个 mapper 或 reducer 创建的值超过这个阈值，一个致命错误将从 mapper/reducer(通过计数器)引发，整个 job 将被杀死。
+
+	- hive.exec.max.dynamic.partitions（默认值为1000）：是一个 DML 可以创建的动态分区的总数。如果每个 mapper/reducer 都没有超过这个限制，但是动态分区的总数却超过了，那么在 job 结束时，中间数据被移动到最终目的地之前，会引发一个异常。
+
+	- hive.exec.max.created.files（默认值为100000）是所有 mappers 和 reducers 创建的最大文件总数。这是通过在创建新文件时由每个 mapper/reducer 更新 Hadoop 计数器来实现的。如果总数超过了 hive.exec.max.created.files 时，一个致命错误将被抛出，job 将被终止。
+
+> hive.exec.max.dynamic.partitions.pernode (default value being 100) is the maximum dynamic partitions that can be created by each mapper or reducer. If one mapper or reducer created more than that the threshold, a fatal error will be raised from the mapper/reducer (through counter) and the whole job will be killed.
+
+> hive.exec.max.dynamic.partitions (default value being 1000) is the total number of dynamic partitions could be created by one DML. If each mapper/reducer did not exceed the limit but the total number of dynamic partitions does, then an exception is raised at the end of the job before the intermediate data are moved to the final destination.
+
+> hive.exec.max.created.files (default value being 100000) is the maximum total number of files created by all mappers and reducers. This is implemented by updating a Hadoop counter by each mapper/reducer whenever a new file is created. If the total number is exceeding hive.exec.max.created.files, a fatal error will be thrown and the job will be killed.
+
+> Another situation we want to protect against dynamic partition insert is that the user may accidentally specify all partitions to be dynamic partitions without specifying one static partition, while the original intention is to just overwrite the sub-partitions of one root partition. We define another parameter hive.exec.dynamic.partition.mode=strict to prevent the all-dynamic partition case. In the strict mode, you have to specify at least one static partition. The default mode is strict. In addition, we have a parameter hive.exec.dynamic.partition=true/false to control whether to allow dynamic partition at all. The default value is false prior to Hive 0.9.0 and true in Hive 0.9.0 and later.
+
+我们希望防止动态分区插入的另一种情况是，用户可能会意外地将所有分区指定为动态分区，而没有指定一个静态分区，而最初的目的只是覆盖一个根分区的子分区。
+
+我们定义另一个参数 `hive.exec.dynamic.partition.mode=strict`，防止出现全部动态分区的情况。在严格模式下，必须指定至少一个静态分区。默认模式为严格的。
+
+此外，我们还有一个参数 `hive.exec.dynamic.partition=true/false` 来控制是否允许动态分区。Hive 0.9.0 之前的默认值为 false, Hive 0.9.0 之后的默认值为 true。
+
+> In Hive 0.6, dynamic partition insert does not work with hive.merge.mapfiles=true or hive.merge.mapredfiles=true, so it internally turns off the merge parameters. Merging files in dynamic partition inserts are supported in Hive 0.7 (see JIRA HIVE-1307 for details).
+
+在 Hive 0.6 中，动态分区插入不能与 `hive.merge.mapfiles=true` 或 `hive.merge.mapredfiles=true` 一起使用。因此它在内部关闭了合并参数。
+
+Hive 0.7 支持在动态分区插入中合并文件。
+
+> Troubleshooting and best practices:
+
+故障排除和最佳实践：
+
+> As stated above, there are too many dynamic partitions created by a particular mapper/reducer, a fatal error could be raised and the job will be killed. The error message looks something like:
+
+如上所述，一个特定的 mapper/reducer 创建的动态分区太多了，可能会引发一个致命错误，job 将被终止。错误信息是这样的：
+
+```sh
+    beeline> set hive.exec.dynamic.partition.mode=nonstrict;
+    beeline> FROM page_view_stg pvs
+          INSERT OVERWRITE TABLE page_view PARTITION(dt, country)
+                 SELECT pvs.viewTime, pvs.userid, pvs.page_url, pvs.referrer_url, null, null, pvs.ip,
+                        from_unixtimestamp(pvs.viewTime, 'yyyy-MM-dd') ds, pvs.country;
+...
+2010-05-07 11:10:19,816 Stage-1 map = 0%,  reduce = 0%
+[Fatal Error] Operator FS_28 (id=41): fatal error. Killing the job.
+Ended Job = job_201005052204_28178 with errors
+...
+```
+
+> The problem of this that one mapper will take a random set of rows and it is very likely that the number of distinct (dt, country) pairs will exceed the limit of hive.exec.max.dynamic.partitions.pernode. One way around it is to group the rows by the dynamic partition columns in the mapper and distribute them to the reducers where the dynamic partitions will be created. In this case the number of distinct dynamic partitions will be significantly reduced. The above example query could be rewritten to:
+
+这样做的问题是，一个 mapper 将取一个随机的行集，并且很可能不同的(dt, country)对的数量将超过 `hive.exec.max.dynamic.partitions.pernode` 的限制。
+
+解决这个问题的一种方法是按照 mapper 中的动态分区列对行进行分组，并将它们分发到将在其中创建动态分区的 reducers 中。
+
+在这种情况下，不同动态分区的数量将显著减少。上面的示例查询可以重写为:
+
+```sh
+beeline> set hive.exec.dynamic.partition.mode=nonstrict;
+beeline> FROM page_view_stg pvs
+      INSERT OVERWRITE TABLE page_view PARTITION(dt, country)
+             SELECT pvs.viewTime, pvs.userid, pvs.page_url, pvs.referrer_url, null, null, pvs.ip,
+                    from_unixtimestamp(pvs.viewTime, 'yyyy-MM-dd') ds, pvs.country
+             DISTRIBUTE BY ds, country;
+```
+
+> This query will generate a MapReduce job rather than Map-only job. The SELECT-clause will be converted to a plan to the mappers and the output will be distributed to the reducers based on the value of (ds, country) pairs. The INSERT-clause will be converted to the plan in the reducer which writes to the dynamic partitions.
+
+该查询将生成一个 MapReduce job，而不是 Map-only job。
+
+SELECT 子句将被转换为 mappers 的计划，并根据 (ds, country)对的值将输出分配给 reducers。
+
+INSERT 子句将被转换为 reducer 中的计划，用于写入动态分区。
+
+> Additional documentation:
+
+- [Design Document for Dynamic Partitions](https://cwiki.apache.org/confluence/display/Hive/DynamicPartitions)
+
+	- [Original design doc](https://issues.apache.org/jira/secure/attachment/12437909/dp_design.txt)
+
+	- [HIVE-936](https://issues.apache.org/jira/browse/HIVE-936)
+
+- [Hive DML: Dynamic Partition Inserts](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-DynamicPartitionInserts)
+
+- [HCatalog Dynamic Partitioning](https://cwiki.apache.org/confluence/display/Hive/HCatalog+DynamicPartitions)
+
+	- [Usage with Pig](https://cwiki.apache.org/confluence/display/Hive/HCatalog+DynamicPartitions#HCatalogDynamicPartitions-UsagewithPig)
+
+	- [Usage from MapReduce](https://cwiki.apache.org/confluence/display/Hive/HCatalog+DynamicPartitions#HCatalogDynamicPartitions-UsagefromMapReduce)
+
 #### 2.3.7、Inserting into Local Files
+
+> In certain situations you would want to write the output into a local file so that you could load it into an excel spreadsheet. This can be accomplished with the following command:
+
+在某些情况下，可能希望将输出写入到本地文件，以便将其加载到 excel 表格中。这可以通过以下命令完成:
+
+```sql
+INSERT OVERWRITE LOCAL DIRECTORY '/tmp/pv_gender_sum'
+SELECT pv_gender_sum.*
+FROM pv_gender_sum;
+```
 
 #### 2.3.8、Sampling
 
+> The sampling clause allows the users to write queries for samples of the data instead of the whole table. Currently the sampling is done on the columns that are specified in the CLUSTERED BY clause of the CREATE TABLE statement. In the following example we choose 3rd bucket out of the 32 buckets of the pv_gender_sum table:
+
+抽样子句允许用户对数据的样本(而不是整个表)编写查询。
+
+目前，抽样是在 CREATE TABLE 语句的 CLUSTERED BY 子句中指定的列上进行的。
+
+在下面的例子中，我们从 pv_gender_sum 表的 32 个桶中选择第三个桶：
+
+```sql
+INSERT OVERWRITE TABLE pv_gender_sum_sample
+SELECT pv_gender_sum.*
+FROM pv_gender_sum TABLESAMPLE(BUCKET 3 OUT OF 32);
+```
+
+> In general the TABLESAMPLE syntax looks like:
+
+一般情况下，TABLESAMPLE 语法如下:
+
+```sql
+TABLESAMPLE(BUCKET x OUT OF y)
+```
+
+> y has to be a multiple or divisor of the number of buckets in that table as specified at the table creation time. The buckets chosen are determined if bucket_number module y is equal to x. So in the above example the following tablesample clause
+
+y 必须是该表在创建表时指定的桶数的倍数或除数。
+
+如果 bucket_number 模块 y 等于 x，则确定所选择的桶。所以在上面的例子中，下面的 tablesample 子句
+
+```sql
+TABLESAMPLE(BUCKET 3 OUT OF 16)
+```
+
+> would pick out the 3rd and 19th buckets. The buckets are numbered starting from 0.
+
+选出第3和第19个桶。桶从0开始编号。
+
+> On the other hand the tablesample clause
+
+另一方面，tablesample 子句
+
+```sql
+TABLESAMPLE(BUCKET 3 OUT OF 64 ON userid)
+```
+
+> would pick out half of the 3rd bucket.
+
+会取出第三个桶的一半。
+
 #### 2.3.9、Union All
+
+> The language also supports union all, for example, if we suppose there are two different tables that track which user has published a video and which user has published a comment, the following query joins the results of a union all with the user table to create a single annotated stream for all the video publishing and comment publishing events:
+
+语言还支持 union all，
+
+例如，如果我们假设有两个不同的表，跟踪用户发布的一个视频，和用户发表的评论。
+
+下面的查询使用 user 表 join 了 union all 的结果，来创建一个带注释的所有视频发布和评论发布事件流:
+
+```sql
+INSERT OVERWRITE TABLE actions_users
+SELECT u.id, actions.date
+FROM (
+    SELECT av.uid AS uid
+    FROM action_video av
+    WHERE av.date = '2008-06-03'
+ 
+    UNION ALL
+ 
+    SELECT ac.uid AS uid
+    FROM action_comment ac
+    WHERE ac.date = '2008-06-03'
+    ) actions JOIN users u ON(u.id = actions.uid);
+```
 
 #### 2.3.10、Array Operations
 
+> Array columns in tables can be as follows:
+
+表中的数组列可以如下:
+
+```sql
+CREATE TABLE array_table (int_array_column ARRAY<INT>);
+```
+
+> Assuming that pv.friends is of the type ARRAY<INT> (i.e. it is an array of integers), the user can get a specific element in the array by its index as shown in the following command:
+
+假设 pv.friends 的类型为 ARRAY<INT>(即它是一个整型数组)，用户可以通过数组的索引获取数组中的特定元素，如下所示:
+
+```sql
+SELECT pv.friends[2]
+FROM page_views pv;
+```
+
+> The select expression gets the third item in the pv.friends array.
+
+select 表达式获得 pv.friends 数组中的第三项。
+
+> The user can also get the length of the array using the size function as shown below:
+
+用户也可以使用 size 函数获取数组的长度，如下所示:
+
+```sql
+SELECT pv.userid, size(pv.friends)
+FROM page_view pv;
+```
+
 #### 2.3.11、Map (Associative Arrays) Operations
+
+> Maps provide collections similar to associative arrays. Such structures can only be created programmatically currently. We will be extending this soon. For the purpose of the current example assume that pv.properties is of the type map<String, String> i.e. it is an associative array from strings to string. Accordingly, the following query:
+
+映射提供了类似于关联数组的集合。目前只能以编程方式创建此类结构。我们很快就会扩展这个。
+
+对于当前的例子，假设 pv.properties 类型为 map<String, String>，即它是一个从字符串到字符串的关联数组。因此，以下查询：
+
+```sql
+INSERT OVERWRITE page_views_map
+SELECT pv.userid, pv.properties['page type']
+FROM page_views pv;
+```
+
+> can be used to select the 'page_type' property from the page_views table.
+
+可用于从 page_views 表中选择 'page_type' 属性。
+
+> Similar to arrays, the size function can also be used to get the number of elements in a map as shown in the following query:
+
+与数组类似，size 函数也可以用于获取 map 中元素的数量，如下所示:
+
+```sql
+SELECT size(pv.properties)
+FROM page_view pv;
+```
 
 #### 2.3.12、Custom Map/Reduce Scripts
 
+> Users can also plug in their own custom mappers and reducers in the data stream by using features natively supported in the Hive language. for example, in order to run a custom mapper script - map_script - and a custom reducer script - reduce_script - the user can issue the following command which uses the TRANSFORM clause to embed the mapper and the reducer scripts.
+
+用户还可以使用 Hive 语言本地支持的特性，在数据流中插入自己的自定义 mappers 和 reducers。
+
+例如，为了运行一个自定义 mapper 脚本 map_script 和一个自定义 reducer 脚本 reduce_script，用户可以发出以下命令，该命令使用 TRANSFORM 子句来嵌入 mapper 和 reducer 脚本。
+
+> Note that columns will be transformed to string and delimited by TAB before feeding to the user script, and the standard output of the user script will be treated as TAB-separated string columns. User scripts can output debug information to standard error which will be shown on the task detail page on hadoop.
+
+注意，在提供给用户脚本之前，列将被转换为字符串，并以制表符分隔，用户脚本的标准输出将被视为制表符分隔的字符串列。
+
+用户脚本可以将调试信息输出到标准错误，这些错误将显示在 hadoop 上的 task detail 页面上。
+
+```sql
+FROM (
+     FROM pv_users
+     MAP pv_users.userid, pv_users.date
+     USING 'map_script'
+     AS dt, uid
+     CLUSTER BY dt) map_output
+ 
+ INSERT OVERWRITE TABLE pv_users_reduced
+     REDUCE map_output.dt, map_output.uid
+     USING 'reduce_script'
+     AS date, count;
+```
+
+> Sample map script (weekday_mapper.py )
+
+抽样 map 脚本：
+
+```python
+import sys
+import datetime
+ 
+for line in sys.stdin:
+  line = line.strip()
+  userid, unixtime = line.split('\t')
+  weekday = datetime.datetime.fromtimestamp(float(unixtime)).isoweekday()
+  print ','.join([userid, str(weekday)])
+```
+
+> Of course, both MAP and REDUCE are "syntactic sugar" for the more general select transform. The inner query could also have been written as such:
+
+当然，MAP 和 REDUCE 对于更一般的 select 转换来说都是“语法糖”。内部查询也可以这样写:
+
+```sql
+SELECT TRANSFORM(pv_users.userid, pv_users.date) USING 'map_script' AS dt, uid CLUSTER BY dt FROM pv_users;
+```
+
+> Schema-less map/reduce: If there is no "AS" clause after "USING map_script", Hive assumes the output of the script contains 2 parts: key which is before the first tab, and value which is the rest after the first tab. Note that this is different from specifying "AS key, value" because in that case value will only contains the portion between the first tab and the second tab if there are multiple tabs.
+
+无模式的 map/reduce：
+
+如果 USING map_script 后没有 AS 子句，Hive 假设脚本输出包含两个部分：key 在第一个制表符前，value 在第一个制表符后。
+
+注意，这与指定 “AS key, value” 不同，因为在这种情况下，如果有多个制表符，value 将只包含第一个制表符和第二个制表符之间的部分。
+
+> In this way, we allow users to migrate old map/reduce scripts without knowing the schema of the map output. User still needs to know the reduce output schema because that has to match what is in the table that we are inserting to.
+
+通过这种方式，我们允许用户在不知道 map 输出模式的情况下迁移旧的 map/reduce 脚本。
+
+用户仍然需要知道 reduce 输出模式，因为它必须与我们要插入的表中的内容相匹配。
+
+```sql
+FROM (
+    FROM pv_users
+    MAP pv_users.userid, pv_users.date
+    USING 'map_script'
+    CLUSTER BY key) map_output
+ 
+INSERT OVERWRITE TABLE pv_users_reduced
+ 
+    REDUCE map_output.dt, map_output.uid
+    USING 'reduce_script'
+    AS date, count;
+```
+
+> Distribute By and Sort By: Instead of specifying "cluster by", the user can specify "distribute by" and "sort by", so the partition columns and sort columns can be different. The usual case is that the partition columns are a prefix of sort columns, but that is not required.
+
+Distribute By 和 Sort By：用户可以指定 Distribute By 和 Sort By，而不是指定 cluster By，因此分区列和排序列可以不同。
+
+通常情况下，分区列是排序列的前缀，但这不是必需的。
+
+```sql
+FROM (
+    FROM pv_users
+    MAP pv_users.userid, pv_users.date
+    USING 'map_script'
+    AS c1, c2, c3
+    DISTRIBUTE BY c2
+    SORT BY c2, c1) map_output
+ 
+INSERT OVERWRITE TABLE pv_users_reduced
+ 
+    REDUCE map_output.c1, map_output.c2, map_output.c3
+    USING 'reduce_script'
+    AS date, count;
+```  
+
 #### 2.3.1、Co-Groups
 
+> Amongst the user community using map/reduce, cogroup is a fairly common operation wherein the data from multiple tables are sent to a custom reducer such that the rows are grouped by the values of certain columns on the tables. With the UNION ALL operator and the CLUSTER BY specification, this can be achieved in the Hive query language in the following way. Suppose we wanted to cogroup the rows from the actions_video and action_comments table on the uid column and send them to the 'reduce_script' custom reducer, the following syntax can be used by the user:
+
+在使用 map/reduce 的用户社区中，cogroup 是一种相当常见的操作，其中来自多个表的数据被发送到一个自定义的 reducer，这样行就按表上某些列的值分组。
+
+通过 UNION ALL 操作符和 CLUSTER BY 规范，Hive 查询语言可以通过以下方式实现这一点。
+
+假设我们想在 uid 列上对 actions_video 和 action_comments 表中的行进行分组，并将它们发送到 'reduce_script' 自定义 reducer，用户可以使用以下语法:
+
+```sql
+FROM (
+     FROM (
+             FROM action_video av
+             SELECT av.uid AS uid, av.id AS id, av.date AS date
+ 
+            UNION ALL
+ 
+             FROM action_comment ac
+             SELECT ac.uid AS uid, ac.id AS id, ac.date AS date
+     ) union_actions
+     SELECT union_actions.uid, union_actions.id, union_actions.date
+     CLUSTER BY union_actions.uid) map
+ 
+ INSERT OVERWRITE TABLE actions_reduced
+     SELECT TRANSFORM(map.uid, map.id, map.date) USING 'reduce_script' AS (uid, id, reduced_val);
+```
