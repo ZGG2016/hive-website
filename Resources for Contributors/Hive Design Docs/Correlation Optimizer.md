@@ -219,9 +219,131 @@ Correlation Optimizer 的目标是利用上面提到的两个查询内的相关�
 
 ## 4、Correlation Detection
 
+> In Hive, every query has one or multiple terminal operators which are the last operators in the operator tree. Those terminal operators are called FileSinkOperatos. To give an easy explanation, if an operator A is on another operator B's path to a FileSinkOperato, A is the downstream of B and B is the upstream of A.
 
+在 Hive 中，每个查询都有一个或多个终端操作符，终端操作符是操作符树中的最后一个操作符。
 
+这些终端操作符被称为 FileSinkOperatos。简单的解释一下，如果一个操作符 A 在另一个操作符 B 的 FileSinkOperato 路径上，A 是 B 的下游，B 是 A 的上游。
 
+> For a given operator tree like the one shown in [Figure 1](https://cwiki.apache.org/confluence/display/Hive/Correlation+Optimizer#CorrelationOptimizer-figure1), the Correlation Optimizer starts to visit operators in the tree from those FileSinkOperatos in a depth-first way. The tree walker stops at every ReduceSinkOperator. Then, a correlation detector starts to find a correlation from this ReduceSinkOperator and its siblings by finding the furthest correlated upstream ReduceSinkOperators in a recursive way. If we can find any correlated upstream ReduceSinkOperator, we find a correlation. Currently, there are three conditions to determine if a upstream ReduceSinkOperator and an downstream ReduceSinkOperator are correlated, which are
+
+对于一个给定的操作符树，如图 1 所示，Correlation Optimizer 开始以深度优先的方式访问来自这些 FileSinkOperatos 的树中的操作符。
+
+树行者在每个 ReduceSinkOperator 上都停下来。然后，相关检测器开始以递归的方式，通过找到最大相关的上游 ReduceSinkOperators 来从这个 ReduceSinkOperators 和它的兄弟姐妹中找到相关性。
+
+如果我们能找到任何相关的上游的 ReduceSinkOperator，我们就找到一个相关性。目前，判断上游 ReduceSinkOperator 与下游 ReduceSinkOperator 是否相关的条件有三种：
+
+- 来自这两个 ReduceSinkOperators 发出的行以相同的方式排序；
+
+- 来自这两个 ReduceSinkOperators 发出的行以相同的方式分区；和
+
+- 这些 ReduceSinkOperators 在数字 reducers 上没有任何冲突。
+
+> emitted rows from these two ReduceSinkOperators are sorted in the same way;
+> emitted rows from these two ReduceSinkOperators are partitioned in the same way; and
+> these ReduceSinkOperators do not have any conflict on the number reducers.
+
+> Interested readers may refer to our [implementation](https://svn.apache.org/viewvc/hive/trunk/ql/src/java/org/apache/hadoop/hive/ql/optimizer/correlation/CorrelationOptimizer.java?view=log) for details.
+
+感兴趣的读者可以参考我们的实现来了解细节。
+
+> During the correlation detection, a JoinOperator or a UnionOperator can introduce branches to the searching path. For a JoinOperator, its parents are all ReduceSinkOperators. When the detector reaches a JoinOperator, it will check if all parents of this JoinOperator are correlated to the downstream ReduceSinkOperator. Because a JoinOperator contains one or multiple 2-way Join operations, for a ReduceSinkOperator, we can determine if another ReduceSinkOperator appearing in the same Join operation is correlated based on the Join type and positions of these ReduceSinkOperators in the Join operation with the following two rules.
+
+在相关性检测期间，JoinOperator 或 UnionOperator 可以向搜索路径引入分支。
+
+对于 JoinOperator，它的父都是 ReduceSinkOperators。当检测器到达一个 JoinOperator 时，它将检查这个 JoinOperator 的所有父是否与下游的 ReduceSinkOperator 相关。
+
+因为一个 JoinOperator 包含一个或多个双向 Join 操作，对于一个 ReduceSinkOperator，我们可以确定出现在相同的连接操作中的另一个 ReduceSinkOperator 是相关的，基于 Join 类型和具有如下两个规则的 Join 操作中的这些 ReduceSinkOperators 的位置。
+
+> If a ReduceSinkOperator represents the left table of a INNER JOIN, a LEFT OUTER JOIN, or a LEFT SEMI JOIN, the ReduceSinkOperator representing the right table is also considered correlated; and
+
+- 如果 ReduceSinkOperator 表示 INNER JOIN、LEFT OUTER JOIN 或 LEFT SEMI JOIN 的左表，则表示右表的 ReduceSinkOperator 也被认为是相关的；和
+
+> If a ReduceSinkOperator represents the right table of a INNER JOIN, or a RIGHT OUTER JOIN, the ReduceSinkOperator representing the left table is also considered correlated.
+
+- 如果 ReduceSinkOperator 表示 INNER JOIN，或 RIGHT OUTER JOIN 的右表，则表示左表的 ReduceSinkOperator 也被认为是相关的。
+
+> With these two rules, we start to analyze those parent ReduceSinkOperators of the JoinOperator from every ReduceSinkOperator which has columns appearing in the join clause and then we can find all correlated ReduceSinkOperators recursively. If we can find that all parent ReduceSinkOperators are correlated from every ReduceSinkOperator which has columns appearing in the join clause, we will continue the correlation detection on this branch. Otherwise, we will determine that none of ReduceSinkOperator for the JoinOperator is correlated and stop the correlation detection on this branch.
+
+根据这两个规则，我们从每个在 join 子句中出现的列的 ReduceSinkOperator 中开始分析 JoinOperator 的父 ReduceSinkOperator，
+
+然后我们可以递归地找到所有相关的 ReduceSinkOperator。
+
+如果我们能发现所有的父 ReduceSinkOperators 都与每个在 join 子句中出现的列的 ReduceSinkOperators 相关，我们将继续在这个分支上进行相关检测。
+
+否则，我们将确定 JoinOperator 的 ReduceSinkOperator 中没有一个是相关的，并停止这个分支上的相关检测。
+
+> For a UnionOperator, none of its parents will be a ReduceSinkOperator. So, we check if we can find correlated ReduceSinkOperators for every parent branch of this UnionOperator. If any branch does not have a ReduceSinkOperator, we will determine that we do not find any correlated ReduceSinkOperator at parent branches of this UnionOperator.
+
+对于 UnionOperator，它的父都不是 ReduceSinkOperator。
+
+因此，我们检查是否可以为这个 UnionOperator 的每个父分支找到相关的 ReduceSinkOperators。
+
+如果任何分支没有 ReduceSinkOperator，我们将确定在 UnionOperator 的父分支上没有找到任何相关的 ReduceSinkOperator。
+
+> During the process of correlation detection, it is possible that the detector can visit a JoinOperator which will be converted to a Map Join later. In this case, the detector stops searching the branch containing this Map Join. For example, in [Figure 5](https://cwiki.apache.org/confluence/display/Hive/Correlation+Optimizer#CorrelationOptimizer-figure5), the detector knows that MJ1, MJ2, and MJ3 will be converted to Map Joins.
+
+在关联检测过程中，检测器可能会访问一个 JoinOperator，这个 JoinOperator 稍后将被转换为 Map Join。在这种情况下，检测器将停止搜索包含此 Map Join 的分支。例如，在图 5 中，检测器知道 MJ1、MJ2 和 MJ3 将被转换为 Map Joins。
+
+## 5、Operator Tree Transformation
+
+> In a correlation, there are two kinds of ReduceSinkOperators. The first kinds of ReduceSinkOperators are at the bottom layer of a query operator tree which are needed to emit rows to the shuffling phase. For example, in [Figure 1](https://cwiki.apache.org/confluence/display/Hive/Correlation+Optimizer#CorrelationOptimizer-figure1), RS1 and RS3 are bottom layer ReduceSinkOperators. The second kinds of ReduceSinkOperators are unnecessary ones which can be removed from the optimized operator tree. For example, in Figure 1, RS2 and RS4 are unnecessary ReduceSinkOperators. Because the input rows of the Reduce phase may need to be forwarded to different operators and those input rows are coming from a single stream, we add a new operator called DemuxOperator to dispatch input rows of the Reduce phase to corresponding operators. 
+
+在一个关联中，有 ReduceSinkOperators 的两种类型。
+
+第一类位于查询操作符树的底层，用于将行发送到 shuffle 阶段。例如，在图1中，RS1 和 RS3 是底层 ReduceSinkOperators。
+
+第二类是不必要的，可以从优化的操作符树中删除。例如，在图1中，RS2 和 RS4 是不必要的 ReduceSinkOperators。
+
+由于 Reduce 阶段的输入行可能需要转发给不同的操作符，而且这些输入行来自单个流，因此我们添加了一个名为 DemuxOperator 的新操作符，以将 Reduce 阶段的输入行分派给相应的操作符。
+
+> In the operator tree transformation, we first connect children of those bottom layer ReduceSinkOperators to the DemuxOperator and reassign tags of those bottom layer ReduceSinkOperators (the DemuxOperator is the only child of those bottom layer ReduceSinkOperators). In the DemuxOperator, we record two mappings. The first one is called newTagToOldTag which maps those new tags assigned to those bottom layer ReduceSinkOperators to their original tags. Those original tags are needed to make JoinOperator work correctly. The second mapping is called newTagToChildIndex which maps those new tags to the children indexes. With this mapping, the DemuxOperator can know the correct operator that a row needs to be forwarded based on the tag of this row. 
+
+在操作符树变换中，我们首先将这些底层 ReduceSinkOperators 的子操作连接到 DemuxOperator，并重新分配这些底层 ReduceSinkOperators 的标签(DemuxOperator 是这些底层 ReduceSinkOperators 的唯一子操作)。
+
+在 DemuxOperator 中，我们记录两个映射。第一个叫做 newTagToOldTag，它将分配给底层 ReduceSinkOperators 的新标签映射到它们的原始标签。为了使 JoinOperator 正确工作，需要这些原始标签。
+
+第二个映射称为 newTagToChildIndex，它将这些新标签映射到子索引。通过这个映射，DemuxOperator 可以根据一行的标签知道需要转发行的正确操作符。
+
+> The second step of operator tree transformation is to remove those unnecessary ReduceSinkOperators. To make the operator tree in the Reduce phase work correctly, we add a new operator called MuxOperator to the original place of those unnecessary ReduceSinkOperators. It is worth noting that if an operator has multiple unnecessary ReduceSinkOperators as its parents, we only add a single MuxOperator.
+
+操作符树转换的第二步是删除那些不必要的 ReduceSinkOperators。
+
+为了使 Reduce 阶段的操作符树正确工作，我们在那些不必要的 ReduceSinkOperators 的原始位置添加了一个名为 MuxOperator 的新操作符。
+
+值得注意的是，如果一个操作符有多个不必要的 ReduceSinkOperators 作为它的父操作符，我们只添加一个 MuxOperator。
+
+## 6、Executing Optimized Operator Tree in the Reduce Phase
+
+> In the Reduce phase, the ExecReducer will forward all reduce input rows to DemuxOperator first. Currently, blocking operators in the reduce phase operator tree share the same keys. Other cases will be supported in future work. Then, DemuxOperator will forward rows to their corresponding operators. Because a Reduce plan optimized Correlation Optimizer can be a tree structure, we need to coordinate operators in this tree to make the Reduce phase work correctly. This coordination mechanism is implemented in ExecDriver, DemuxOperator and MuxOperator.
+
+在 Reduce 阶段，ExecReducer 首先将所有 Reduce 输入行转发给 DemuxOperator。
+
+目前，在 reduce 阶段的操作符树中的阻塞操作符共享相同的键。其他情况将在今后的工作中得到支持。
+
+然后，DemuxOperator 将行转发给它们对应的操作符。因为一个 Correlation Optimizer 优化的 Reduce 计划可以是一个树形结构，我们需要协调这棵树中的操作符，使 Reduce 阶段正确地工作。
+
+这种协调机制在 ExecDriver、DemuxOperator 和 MuxOperator 中实现。
+
+> When a new row is sent to the ExecDriver, it checks if it needs to start a new group of rows by checking values of those key columns. If a new group of rows is coming, it first invokes DemuxOperator.endGroup. Then, the DemuxOperator will ask its children to process their buffered rows and propagate the endGroup call to the operator tree. Finally, DemuxOperator will propagate processGroup call to the operator tree. Usually, the implementation of processGroup in an operator only propagates this call to its children. MuxOperator is the one that overrides processGroup. When a MuxOperator gets the processGroup call, it check if all its parent operators have invoked this call. If so, it will ask its child to generate results and propagate processGroup to its child. Once the processGroup has been propagated to all operators, the DemuxOperator.endGroup will return and ExecDriver will propagate startGroup to the operator tree.
+
+当一个新行被发送给 ExecDriver 时，它通过检查那些 key 列的值，来检查它是否需要启动一个新的行组。
+
+如果来了一个新的行组，它首先调用 `DemuxOperator.endGroup`。然后，DemuxOperator 将要求其子程序处理它们的缓冲行，并将 endGroup 调用传播到操作符树。最后，DemuxOperator 将 processGroup 调用传播到操作符树。
+
+通常，操作符中的 processGroup 实现只将此调用传播给它的子操作符。MuxOperator 是覆盖 processGroup 的。当 MuxOperator 获得 processGroup 调用时，它检查它的所有父操作符是否都调用了这个调用。
+
+如果是，它将要求它的子程序生成结果并将 processGroup 传播给它的子程序。一旦 processGroup 被传播到所有操作符，`DemuxOperator.endGroup` 将返回，ExecDriver 将把 startGroup 传播到操作符树。
+
+> For every row sent to the ExecDriver, it also has a tag assigned by a corresponding RediceSinkOperator at the Map phase. In a row group (rows having the same key), rows are also sorted by their tags. When the DemuxOperator sees a new tag coming, it knows all child operators associated with tags smaller than this new coming tag will not have any input within the current row group. Thus, it can call endGroup and processGroup of those operators earlier. With this logic, within a row group, the input rows of every operator in the operator tree are also ordered by tags, which is required by JoinOperator. This logic also makes rows in the buffer of an operator be emitted as quickly as possible, which avoids unnecessary memory footprint contributed from buffering unnecessary rows.
+
+对于发送到 ExecDriver 的每一行，它还具有一个由对应的 RediceSinkOperator 在 Map 阶段分配的标签。
+
+在一个行组(具有相同键的行)中，行也按其标签排序。当 DemuxOperator 看到一个新标签到来时，它知道所有与比这个新标签小的标签相关联的子操作符在当前行组中不会有任何输入。
+
+因此，它可以在前面调用这些操作符的 endGroup 和 processGroup。使用此逻辑，在一个行组中，操作符树中每个操作符的输入行也按标签排序，这是 JoinOperator 所需要的。
+
+这种逻辑还使操作符缓冲区中的行尽可能快地发出，从而避免了由于缓冲不必要的行而造成的不必要的内存占用。
 
 ## 7、Related Jiras
 
