@@ -250,7 +250,9 @@ timestamp with local time zone | 2014-12-12 12:34:56 | 2014-12-12 15:34:56
 
 > The operators and functions listed below are not necessarily up to date. ([Hive Operators and UDFs](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF) has more current information.) In [Beeline](https://cwiki.apache.org/confluence/display/Hive/HiveServer2+Clients#HiveServer2Clients-Beeline%E2%80%93NewCommandLineShell) or the Hive [CLI](https://cwiki.apache.org/confluence/display/Hive/HiveServer2+Clients#HiveServer2Clients-Beeline%E2%80%93NewCommandLineShell), use these commands to show the latest documentation:
 
-下面列出的操作符和函数不一定是最新的。在 Beeline 或 Hive 命令行中，使用这些命令显示最新的文档:
+下面列出的操作符和函数不一定是最新的。
+
+在 Beeline 或 Hive CLI 中，使用这些命令显示最新的文档:
 
 ```sql
 SHOW FUNCTIONS;
@@ -260,7 +262,37 @@ DESCRIBE FUNCTION EXTENDED <function_name>;
 
 > Case-insensitive. All Hive keywords are case-insensitive, including the names of Hive operators and functions.
 
-不区分大小写。所有 Hive 关键字不区分大小写，包括 Hive 操作符和函数的名称。
+不区分大小写。**所有 Hive 关键字不区分大小写**，包括 Hive 操作符和函数的名称。
+
+----------------------------------------------
+
+```sql
+hive> show functions;
+OK
+!
+!=
+$sum0
+%
+&
+*
++
+.....
+abs
+and
+array
+
+hive> describe function array;
+OK
+array(n0, n1...) - Creates an array with the given elements 
+
+hive> describe function extended array;
+OK
+array(n0, n1...) - Creates an array with the given elements 
+Function class:org.apache.hadoop.hive.ql.udf.generic.GenericUDFArray
+Function type:BUILTIN
+```
+
+----------------------------------------------
 
 #### 1.6.1、Built In Operators
 
@@ -268,25 +300,25 @@ DESCRIBE FUNCTION EXTENDED <function_name>;
 
 - 关系操作符：下面的操作符比较传入的操作数，生成一个 TRUE 或 FALSE 值，这取决于操作数之间的比较是否有效。
 
-操作符表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
+	操作符表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
 
 > Arithmetic Operators:The following operators support various common arithmetic operations on the operands. All of them return number types.
 
-- 算术操作符：以下操作符支持对操作数进行各种常见的算术操作。它们都返回数字类型。
+- 算术操作符：以下操作符支持对操作数进行各种常见的算术操作。它们都返回 number 类型。
 
-操作符表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
+	操作符表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
 
 > Logical Operators:The following operators provide support for creating logical expressions. All of them return boolean TRUE or FALSE depending upon the boolean values of the operands.
 
 - 逻辑操作符：以下操作符提供了对创建逻辑表达式的支持。它们都返回布尔值 TRUE 或 FALSE，这取决于操作数的布尔值。
 
-操作符表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
+	操作符表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
 
 > Operators on Complex Types:The following operators provide mechanisms to access elements in Complex Types
 
 - 在复杂类型上的操作符：下面的操作符提供了访问复杂类型中元素的机制。
 
-操作符表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
+	操作符表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
 
 #### 1.6.2、Built In Functions
 
@@ -294,13 +326,13 @@ DESCRIBE FUNCTION EXTENDED <function_name>;
 
 - Hive 支持下面的内建函数：
 
-函数表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
+	函数表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
 
 > The following built in aggregate functions are supported in Hive:
 
 - Hive 中支持下面内建的聚合函数：
 
-函数表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
+	函数表格见原文：[https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions](https://cwiki.apache.org/confluence/display/Hive/Tutorial#Tutorial-BuiltInOperatorsandFunctions)
 
 ### 1.7、Language Capabilities
 
